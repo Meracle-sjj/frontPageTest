@@ -134,22 +134,23 @@ class SimpleGNN(nn.Module):<br>
         <div class="section">
             <h2>部署方式</h2>
             <div class="deploy-steps">
-                1. 安装依赖环境：<br>
-                <span class="code-block" style="background:#24292f;color:#fff;">pip install torch numpy</span>
-                2. 下载模型权重并准备数据集。<br>
-                3. 运行主程序：<br>
-                <span class="code-block" style="background:#24292f;color:#fff;">python main.py --config config.yaml</span>
-                4. 支持容器化部署（如 Docker），可根据实际需求集成到自动驾驶平台。
+                <div>1. 安装依赖环境：</div>
+                <div class="code-block">pip install torch numpy</div>
+                <div>2. 下载模型权重并准备数据集。</div>
+                <div>3. 运行主程序：</div>
+                <div class="code-block">python main.py --config config.yaml</div>
+                <div>4. 支持容器化部署（如 Docker），可根据实际需求集成到自动驾驶平台。</div>
             </div>
         </div>
 
         <div class="section">
             <h2>实现效果</h2>
             <div id="effect-demo" style="text-align:center;">
-                <img id="img-0194" src="assets/0194.jpg" class="effect-img" alt="0194原图" style="max-width:48%;margin:0 1% 18px 1%;">
-                <img id="img-019-after" src="assets/019_after.jpg" class="effect-img" alt="0194对比图" style="max-width:48%;margin:0 1% 18px 1%;display:none;">
-                <br>
-                <button id="toggle-compare-btn" style="padding:8px 22px;font-size:1.05rem;border:none;border-radius:6px;background:#1769aa;color:#fff;cursor:pointer;margin-bottom:10px;">查看对比</button>
+                <div style="display: flex; justify-content: center; align-items: flex-start; gap: 2%; flex-wrap: wrap;">
+                    <img id="img-0194" src="assets/0194.jpg" class="effect-img" alt="0194原图" style="max-width:48%;min-width:220px;">
+                    <img id="img-019-after" src="assets/019_after.jpg" class="effect-img" alt="0194对比图" style="max-width:48%;min-width:220px;display:none;">
+                </div>
+                <button id="toggle-compare-btn" style="padding:8px 22px;font-size:1.05rem;border:none;border-radius:6px;background:#1769aa;color:#fff;cursor:pointer;margin:18px auto 10px auto;display:block;">查看对比</button>
             </div>
             <div style="color:#888;font-size:0.97rem;text-align:center;">
                 点击“查看对比”可显示处理后效果。
