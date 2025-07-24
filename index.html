@@ -1,63 +1,160 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>施钧舰的个人介绍</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: #f5f6fa;
-      margin: 0;
-      padding: 0;
-      color: #222;
-    }
-    .container {
-      max-width: 600px;
-      margin: 60px auto;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      padding: 40px 30px;
-    }
-    h1 {
-      margin-top: 0;
-      color: #007acc;
-      letter-spacing: 2px;
-    }
-    ul {
-      padding-left: 20px;
-    }
-    .contact {
-      margin-top: 24px;
-      font-size: 1.05em;
-    }
-    .contact a {
-      color: #007acc;
-      text-decoration: none;
-      margin-right: 12px;
-    }
-    .contact a:hover {
-      text-decoration: underline;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代码介绍 | 施钧舰</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+            background: #f6f8fa;
+            color: #23272f;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 48px 40px 40px 40px;
+        }
+        h1 {
+            color: #1769aa;
+            font-size: 2.6rem;
+            letter-spacing: 0.03em;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        h2 {
+            color: #23272f;
+            font-size: 1.6rem;
+            border-left: 4px solid #1769aa;
+            padding-left: 12px;
+            margin-top: 38px;
+            margin-bottom: 18px;
+            font-weight: 700;
+        }
+        .desc {
+            font-size: 1.13rem;
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+        .section {
+            margin-bottom: 38px;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #f8fafc;
+            border-radius: 8px;
+            padding: 18px 22px;
+            font-size: 1rem;
+            font-family: 'Fira Mono', 'Consolas', monospace;
+            overflow-x: auto;
+            margin-bottom: 18px;
+            margin-top: 6px;
+        }
+        .network-img {
+            display: block;
+            margin: 0 auto 16px auto;
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(23,105,170,0.10);
+        }
+        .deploy-steps {
+            background: #e3eef8;
+            border-radius: 8px;
+            padding: 18px 22px;
+            margin-bottom: 10px;
+            color: #1d2b36;
+            font-size: 1.05rem;
+        }
+        .effect-img {
+            display: inline-block;
+            max-width: 48%;
+            margin: 0 1% 18px 1%;
+            border-radius: 8px;
+            box-shadow: 0 1px 8px rgba(23,105,170,0.08);
+            vertical-align: top;
+        }
+        .footer {
+            text-align: center;
+            color: #888;
+            font-size: 0.98rem;
+            margin-top: 36px;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 18px 8px; }
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.1rem; }
+            .effect-img { max-width: 100%; margin: 0 0 14px 0; }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>施钧舰</h1>
-    <p>你好！我是中国科学技术大学的一名研究生，目前专注于自动驾驶、图神经网络与强化学习等方向。热爱编程与技术创新，喜欢用代码解决实际问题。</p>
-    <h2>技能</h2>
-    <ul>
-      <li>Python / Java / C++</li>
-      <li>深度学习与图神经网络</li>
-      <li>自动驾驶感知与路径规划</li>
-      <li>MyBatis-Plus / Spring Boot</li>
-      <li>学术论文写作与翻译</li>
-    </ul>
-    <div class="contact">
-      <strong>联系方式：</strong>
-      <a href="test.email@example.com">actual.email@example.com</a>
-      <a href="https://github.com/actual-github-username" target="_blank">GitHub</a>
+    <div class="container">
+        <h1>高端自动驾驶代码系统</h1>
+        <div class="desc">
+            本项目聚焦于自动驾驶感知与路径规划，集成了最新的深度学习与图神经网络算法，具备高效、可扩展的端到端推理能力，适用于复杂交通环境下的智能决策与控制。<br>
+            <b>作者：</b>施钧舰，中国科学技术大学
+        </div>
+
+        <div class="section">
+            <h2>代码简介</h2>
+            <div>
+                系统采用模块化设计，包含数据预处理、特征提取、深度网络推理和路径优化等核心部分。核心实现简洁高效，易于部署与二次开发。部分关键代码如下：
+                <div class="code-block">
+import torch<br>
+import torch.nn as nn<br>
+<br>
+class SimpleGNN(nn.Module):<br>
+&nbsp;&nbsp;def __init__(self, in_dim, hid_dim, out_dim):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;super().__init__()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.layer1 = nn.Linear(in_dim, hid_dim)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.layer2 = nn.Linear(hid_dim, out_dim)<br>
+<br>
+&nbsp;&nbsp;def forward(self, x):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x = torch.relu(self.layer1(x))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;return self.layer2(x)
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>深度网络结构图</h2>
+            <img src="assets/Interfuser_Structure.drawio.svg" alt="结构示意图">
+            <div style="text-align:center;color:#888;font-size:0.97rem;">
+                图示为典型的图神经网络结构，支持多层特征融合与端到端训练。
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>部署方式</h2>
+            <div class="deploy-steps">
+                1. 安装依赖环境：<br>
+                <span class="code-block" style="background:#24292f;color:#fff;">pip install torch numpy</span>
+                2. 下载模型权重并准备数据集。<br>
+                3. 运行主程序：<br>
+                <span class="code-block" style="background:#24292f;color:#fff;">python main.py --config config.yaml</span>
+                4. 支持容器化部署（如 Docker），可根据实际需求集成到自动驾驶平台。
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实现效果</h2>
+            <img src="https://cdn.jsdelivr.net/gh/stevenliu216/static-cdn/assets/autodrive_result_1.jpg" class="effect-img" alt="效果示例1">
+            <img src="https://cdn.jsdelivr.net/gh/stevenliu216/static-cdn/assets/autodrive_result_2.jpg" class="effect-img" alt="效果示例2">
+            <div style="color:#888;font-size:0.97rem;text-align:center;">
+                系统可实现复杂路况下的实时路径规划与动态避障，效果如上图所示。
+            </div>
+        </div>
+
+        <div class="footer">
+            &copy; 2024 施钧舰 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
+        </div>
     </div>
-  </div>
 </body>
 </html>
