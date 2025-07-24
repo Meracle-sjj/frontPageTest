@@ -96,7 +96,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>高端自动驾驶代码系统</h1>
+        <h1>基于Transformer的自动驾驶系统设计</h1>
         <div class="desc">
             本项目聚焦于自动驾驶感知与路径规划，集成了最新的深度学习与图神经网络算法，具备高效、可扩展的端到端推理能力，适用于复杂交通环境下的智能决策与控制。<br>
             <b>作者：</b>施钧舰，中国科学技术大学
@@ -125,7 +125,7 @@ class SimpleGNN(nn.Module):<br>
 
         <div class="section">
             <h2>深度网络结构图</h2>
-            <img src="assets/Interfuser_Structure.drawio.svg" alt="结构示意图">
+            <img src="assets/Interfuser_Structure.drawio.svg" alt="结构示意图" class="network-img">
             <div style="text-align:center;color:#888;font-size:0.97rem;">
                 图示为典型的图神经网络结构，支持多层特征融合与端到端训练。
             </div>
@@ -145,11 +145,25 @@ class SimpleGNN(nn.Module):<br>
 
         <div class="section">
             <h2>实现效果</h2>
-            <img src="https://cdn.jsdelivr.net/gh/stevenliu216/static-cdn/assets/autodrive_result_1.jpg" class="effect-img" alt="效果示例1">
-            <img src="https://cdn.jsdelivr.net/gh/stevenliu216/static-cdn/assets/autodrive_result_2.jpg" class="effect-img" alt="效果示例2">
-            <div style="color:#888;font-size:0.97rem;text-align:center;">
-                系统可实现复杂路况下的实时路径规划与动态避障，效果如上图所示。
+            <div id="effect-demo" style="text-align:center;">
+                <img id="img-0194" src="assets/0194.jpg" class="effect-img" alt="0194原图" style="max-width:48%;margin:0 1% 18px 1%;">
+                <img id="img-019-after" src="assets/019_after.jpg" class="effect-img" alt="0194对比图" style="max-width:48%;margin:0 1% 18px 1%;display:none;">
+                <br>
+                <button id="toggle-compare-btn" style="padding:8px 22px;font-size:1.05rem;border:none;border-radius:6px;background:#1769aa;color:#fff;cursor:pointer;margin-bottom:10px;">查看对比</button>
             </div>
+            <div style="color:#888;font-size:0.97rem;text-align:center;">
+                点击“查看对比”可显示处理后效果。
+            </div>
+            <script>
+            const btn = document.getElementById('toggle-compare-btn');
+            const afterImg = document.getElementById('img-019-after');
+            let shown = false;
+            btn.onclick = function() {
+                shown = !shown;
+                afterImg.style.display = shown ? '' : 'none';
+                btn.textContent = shown ? '隐藏对比' : '查看对比';
+            };
+            </script>
         </div>
 
         <div class="footer">
