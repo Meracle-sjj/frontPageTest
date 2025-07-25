@@ -1,0 +1,230 @@
+<svg viewBox="0 0 1400 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="domainA" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff8e8e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="domainB" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4ecdc4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7fdbdb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="shared" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#95e1d3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b8f2e6;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Title -->
+  <text x="700" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333">
+    MUNIT架构 - RGB到热红外图像转换
+  </text>
+  
+  <!-- Domain A (RGB) Generator -->
+  <g>
+    <rect x="50" y="80" width="280" height="380" fill="url(#domainA)" stroke="#d63031" stroke-width="3" rx="10" filter="url(#shadow)"/>
+    <text x="190" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">
+      Generator A (RGB Domain)
+    </text>
+    
+    <!-- Style Encoder A -->
+    <rect x="70" y="120" width="240" height="80" fill="#ff4757" stroke="white" stroke-width="2" rx="5"/>
+    <text x="190" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Style Encoder A</text>
+    <text x="190" y="155" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Conv2d + AdaptiveAvgPool2d</text>
+    <text x="190" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Output: style_dim×1×1</text>
+    <text x="190" y="185" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">4 downsample layers</text>
+    
+    <!-- Content Encoder A -->
+    <rect x="70" y="220" width="240" height="80" fill="#ff6348" stroke="white" stroke-width="2" rx="5"/>
+    <text x="190" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Content Encoder A</text>
+    <text x="190" y="255" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Conv2d + ResBlocks</text>
+    <text x="190" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">n_downsample + n_res</text>
+    <text x="190" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Instance Normalization</text>
+    
+    <!-- Decoder A -->
+    <rect x="70" y="320" width="240" height="80" fill="#ff7675" stroke="white" stroke-width="2" rx="5"/>
+    <text x="190" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Decoder A</text>
+    <text x="190" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">AdaIN ResBlocks + Upsample</text>
+    <text x="190" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">n_res + n_upsample</text>
+    <text x="190" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Tanh activation</text>
+    
+    <!-- MLP A -->
+    <rect x="70" y="420" width="240" height="30" fill="#fd79a8" stroke="white" stroke-width="2" rx="5"/>
+    <text x="190" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">MLP (AdaIN Parameters)</text>
+  </g>
+  
+  <!-- Domain B (Thermal) Generator -->
+  <g>
+    <rect x="370" y="80" width="280" height="380" fill="url(#domainB)" stroke="#00b894" stroke-width="3" rx="10" filter="url(#shadow)"/>
+    <text x="510" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">
+      Generator B (Thermal Domain)
+    </text>
+    
+    <!-- Style Encoder B -->
+    <rect x="390" y="120" width="240" height="80" fill="#00cec9" stroke="white" stroke-width="2" rx="5"/>
+    <text x="510" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Style Encoder B</text>
+    <text x="510" y="155" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Conv2d + AdaptiveAvgPool2d</text>
+    <text x="510" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Output: style_dim×1×1</text>
+    <text x="510" y="185" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">4 downsample layers</text>
+    
+    <!-- Content Encoder B -->
+    <rect x="390" y="220" width="240" height="80" fill="#55efc4" stroke="white" stroke-width="2" rx="5"/>
+    <text x="510" y="240" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Content Encoder B</text>
+    <text x="510" y="255" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Conv2d + ResBlocks</text>
+    <text x="510" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">n_downsample + n_res</text>
+    <text x="510" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Instance Normalization</text>
+    
+    <!-- Decoder B -->
+    <rect x="390" y="320" width="240" height="80" fill="#81ecec" stroke="white" stroke-width="2" rx="5"/>
+    <text x="510" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Decoder B</text>
+    <text x="510" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">AdaIN ResBlocks + Upsample</text>
+    <text x="510" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">n_res + n_upsample</text>
+    <text x="510" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Tanh activation</text>
+    
+    <!-- MLP B -->
+    <rect x="390" y="420" width="240" height="30" fill="#fd79a8" stroke="white" stroke-width="2" rx="5"/>
+    <text x="510" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">MLP (AdaIN Parameters)</text>
+  </g>
+  
+  <!-- Shared Content Space -->
+  <rect x="690" y="200" width="200" height="100" fill="url(#shared)" stroke="#00b894" stroke-width="3" rx="10" filter="url(#shadow)"/>
+  <text x="790" y="225" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333">
+    Shared Content Space
+  </text>
+  <text x="790" y="245" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">
+    Domain-invariant
+  </text>
+  <text x="790" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">
+    Content Representation
+  </text>
+  <text x="790" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">
+    C_A ≈ C_B
+  </text>
+  
+  <!-- Multi-scale Discriminators -->
+  <g>
+    <!-- Discriminator A -->
+    <rect x="950" y="120" width="180" height="120" fill="#e17055" stroke="#d63031" stroke-width="2" rx="8" filter="url(#shadow)"/>
+    <text x="1040" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">
+      Discriminator A
+    </text>
+    <text x="1040" y="165" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">Multi-scale</text>
+    <text x="1040" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">3 scales</text>
+    <text x="1040" y="195" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">Conv2d layers</text>
+    <text x="1040" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">AvgPool downsampling</text>
+    <text x="1040" y="225" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">LSGAN loss</text>
+    
+    <!-- Discriminator B -->
+    <rect x="950" y="260" width="180" height="120" fill="#00b894" stroke="#00a085" stroke-width="2" rx="8" filter="url(#shadow)"/>
+    <text x="1040" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">
+      Discriminator B
+    </text>
+    <text x="1040" y="305" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">Multi-scale</text>
+    <text x="1040" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">3 scales</text>
+    <text x="1040" y="335" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">Conv2d layers</text>
+    <text x="1040" y="350" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">AvgPool downsampling</text>
+    <text x="1040" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="white">LSGAN loss</text>
+  </g>
+  
+  <!-- Loss Functions -->
+  <g>
+    <rect x="50" y="500" width="600" height="200" fill="#f8f9fa" stroke="#6c757d" stroke-width="2" rx="10" filter="url(#shadow)"/>
+    <text x="350" y="525" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333">
+      Loss Functions
+    </text>
+    
+    <!-- Reconstruction Loss -->
+    <rect x="70" y="540" width="170" height="70" fill="#74b9ff" stroke="#0984e3" stroke-width="2" rx="5"/>
+    <text x="155" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Reconstruction Loss</text>
+    <text x="155" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">L1 Loss</text>
+    <text x="155" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Content + Style</text>
+    <text x="155" y="600" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Cycle consistency</text>
+    
+    <!-- Adversarial Loss -->
+    <rect x="260" y="540" width="170" height="70" fill="#e84393" stroke="#d63031" stroke-width="2" rx="5"/>
+    <text x="345" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Adversarial Loss</text>
+    <text x="345" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">LSGAN</text>
+    <text x="345" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Multi-scale</text>
+    <text x="345" y="600" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Domain confusion</text>
+    
+    <!-- LoG Loss -->
+    <rect x="450" y="540" width="170" height="70" fill="#00b894" stroke="#00a085" stroke-width="2" rx="5"/>
+    <text x="535" y="560" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">LoG Loss</text>
+    <text x="535" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Laplacian of Gaussian</text>
+    <text x="535" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Edge preservation</text>
+    <text x="535" y="600" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Coefficient: 20</text>
+    
+    <!-- VGG Loss -->
+    <rect x="70" y="620" width="170" height="70" fill="#a29bfe" stroke="#6c5ce7" stroke-width="2" rx="5"/>
+    <text x="155" y="640" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">VGG Loss</text>
+    <text x="155" y="655" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Perceptual loss</text>
+    <text x="155" y="670" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">VGG16 features</text>
+    <text x="155" y="680" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">Instance normalized</text>
+    
+    <!-- Total Loss -->
+    <rect x="260" y="620" width="360" height="70" fill="#fd79a8" stroke="#e84393" stroke-width="2" rx="5"/>
+    <text x="440" y="640" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">Total Generator Loss</text>
+    <text x="440" y="655" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">L_total = λ_gan×L_adv + λ_recon×L_recon + λ_vgg×L_vgg + λ_log×L_log</text>
+    <text x="440" y="670" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="white">where λ_log = 20 (coefficient for LoG loss)</text>
+  </g>
+  
+  <!-- Data Flow -->
+  <g>
+    <rect x="950" y="500" width="400" height="180" fill="#f8f9fa" stroke="#6c757d" stroke-width="2" rx="10" filter="url(#shadow)"/>
+    <text x="1150" y="525" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333">
+      Training Process
+    </text>
+    
+    <text x="970" y="550" font-family="Arial, sans-serif" font-size="11" fill="#333">1. Encode: x_a → (c_a, s_a), x_b → (c_b, s_b)</text>
+    <text x="970" y="570" font-family="Arial, sans-serif" font-size="11" fill="#333">2. Self-reconstruction: (c_a, s_a) → x_a_recon</text>
+    <text x="970" y="590" font-family="Arial, sans-serif" font-size="11" fill="#333">3. Cross-domain translation: (c_a, s_b) → x_ab</text>
+    <text x="970" y="610" font-family="Arial, sans-serif" font-size="11" fill="#333">4. Cycle consistency: x_ab → (c_a_recon, s_b_recon)</text>
+    <text x="970" y="630" font-family="Arial, sans-serif" font-size="11" fill="#333">5. Discriminator training: Real vs Fake</text>
+    <text x="970" y="650" font-family="Arial, sans-serif" font-size="11" fill="#333">6. LoG loss for edge preservation</text>
+    <text x="970" y="670" font-family="Arial, sans-serif" font-size="11" fill="#333">7. Adam optimizer with lr scheduling</text>
+  </g>
+  
+  <!-- Arrows showing data flow -->
+  <!-- Content sharing arrow -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+     refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+    </marker>
+  </defs>
+  
+  <!-- Content encoders to shared space -->
+  <line x1="330" y1="260" x2="690" y2="240" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="630" y1="260" x2="690" y2="260" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Generated images to discriminators -->
+  <line x1="650" y1="160" x2="950" y2="160" stroke="#d63031" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="650" y1="360" x2="950" y2="340" stroke="#00b894" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Style encoders to MLP -->
+  <line x1="190" y1="200" x2="190" y2="420" stroke="#fd79a8" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="510" y1="200" x2="510" y2="420" stroke="#fd79a8" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Architecture annotations -->
+  <text x="700" y="740" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#666">
+    特殊特性: 添加了LoG损失用于边缘保持，特别适用于RGB到热红外图像的转换
+  </text>
+  
+  <text x="700" y="760" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#666">
+    输入尺寸: 400×640, 支持多种数据加载方式 (ImageFolder, ImageFilelist)
+  </text>
+  
+  <text x="700" y="780" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#666">
+    推理阶段: 支持多样式生成 (num_style=30), 可选择最佳PSNR/SSIM结果
+  </text>
+  
+  <!-- Input/Output labels -->
+  <text x="30" y="70" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#d63031">
+    RGB输入
+  </text>
+  <text x="680" y="70" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#00b894">
+    热红外输出
+  </text>
+</svg>

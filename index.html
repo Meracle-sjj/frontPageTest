@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>代码介绍 | 施钧舰</title>
+    <title>高真实感红外数据生成 | 杨涵青</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -38,6 +38,14 @@
             margin-bottom: 18px;
             font-weight: 700;
         }
+        h3 {
+            color: #1769aa;
+            font-size: 1.22rem;
+            margin-top: 28px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
         .desc {
             font-size: 1.13rem;
             margin-bottom: 24px;
@@ -46,9 +54,9 @@
         .section {
             margin-bottom: 38px;
         }
-        .code-block {
-            background: #1e293b;
-            color: #f8fafc;
+        .code-block, .idea-block {
+            background: #23272e;
+            color: #e6efff;
             border-radius: 8px;
             padding: 18px 22px;
             font-size: 1rem;
@@ -56,6 +64,10 @@
             overflow-x: auto;
             margin-bottom: 18px;
             margin-top: 6px;
+            line-height: 1.7;
+        }
+        .code-block span, .idea-block span {
+            white-space: pre;
         }
         .network-img {
             display: block;
@@ -72,13 +84,35 @@
             color: #1d2b36;
             font-size: 1.05rem;
         }
+        .effect-img-group {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 2%;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .effect-pair {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 48%;
+            min-width: 220px;
+            margin-bottom: 10px;
+        }
         .effect-img {
-            display: inline-block;
-            max-width: 48%;
-            margin: 0 1% 18px 1%;
+            width: 100%;
+            max-width: 100%;
             border-radius: 8px;
             box-shadow: 0 1px 8px rgba(23,105,170,0.08);
-            vertical-align: top;
+            margin-bottom: 6px;
+            transition: opacity 0.5s;
+        }
+        .effect-label {
+            color: #888;
+            font-size: 0.98rem;
+            text-align: center;
+            margin-bottom: 4px;
         }
         .footer {
             text-align: center;
@@ -86,89 +120,243 @@
             font-size: 0.98rem;
             margin-top: 36px;
         }
+        .effect-toggle-btn {
+            padding:8px 22px;
+            font-size:1.05rem;
+            border:none;
+            border-radius:6px;
+            background:#1769aa;
+            color:#fff;
+            cursor:pointer;
+            margin:18px auto 10px auto;
+            display:block;
+            transition: background 0.2s;
+        }
+        .effect-toggle-btn:hover {
+            background: #125b8c;
+        }
+        @media (max-width: 800px) {
+            .effect-img-group { flex-direction: column; gap: 0; }
+            .effect-pair { width: 100%; min-width: 0; margin-bottom: 24px; }
+        }
         @media (max-width: 600px) {
             .container { padding: 18px 8px; }
             h1 { font-size: 2rem; }
             h2 { font-size: 1.1rem; }
-            .effect-img { max-width: 100%; margin: 0 0 14px 0; }
         }
+        /* IDEA风格代码高亮（简化） */
+        .kw { color: #c792ea; }
+        .cls { color: #82aaff; }
+        .cm { color: #999; font-style: italic; }
+        .fn { color: #82aaff; }
+        .str { color: #ecc48d; }
+        .num { color: #f78c6c; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>基于Transformer的自动驾驶系统设计</h1>
+        <h1>高真实感红外数据生成</h1>
         <div class="desc">
-            本项目聚焦于自动驾驶感知与路径规划，集成了最新的深度学习与图神经网络算法，具备高效、可扩展的端到端推理能力，适用于复杂交通环境下的智能决策与控制。<br>
-            <b>作者：</b>施钧舰，中国科学技术大学
+            本系统实现了一个基于MUNIT架构的改进模型，专门用于RGB图像到热红外图像的无监督转换任务。MUNIT的核心理念是将图像分解为两个独立的编码空间：域不变的内容编码和域特定的风格编码，其中内容编码包含图像的结构和语义信息并在不同域间保持一致，而风格编码则包含域特定的外观信息如颜色、纹理等特征。通过组合一个域的内容编码和另一个域的风格编码，模型能够实现高质量的跨域图像转换，这种分解策略使得模型能够在没有配对训练数据的情况下学习两个视觉域之间的映射关系。本系统在标准MUNIT基础上专门针对热红外转换任务进行了优化，引入了LoG损失函数来增强边缘细节的保持能力，因为热红外图像的边缘信息对于目标检测、跟踪等下游任务极其重要，而传统的重构损失往往会导致边缘模糊问题。<br>
+            <b>作者：</b>杨涵青，中国科学技术大学
         </div>
 
         <div class="section">
             <h2>代码简介</h2>
-            <div>
-                系统采用模块化设计，包含数据预处理、特征提取、深度网络推理和路径优化等核心部分。核心实现简洁高效，易于部署与二次开发。部分关键代码如下：
-                <div class="code-block">
-import torch<br>
-import torch.nn as nn<br>
+
+            <h3>1、网络架构设计</h3>
+            <div class="desc" style="margin-bottom:10px;">
+                模型的核心是双生成器架构，每个生成器都包含风格编码器、内容编码器和解码器三个主要组件。风格编码器通过4层下采样操作和全局平均池化来提取域特定的风格特征，内容编码器则使用卷积层和残差块结合实例归一化来提取域不变的内容特征，而解码器采用AdaIN残差块和上采样操作来重建图像。
+            </div>
+            <b>生成器架构（AdaINGen）</b>：
+            <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">AdaINGen</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self, input_dim, params):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>(AdaINGen, self).__init__()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;dim = params['dim']<br>
+&nbsp;&nbsp;&nbsp;&nbsp;style_dim = params['style_dim']<br>
+&nbsp;&nbsp;&nbsp;&nbsp;n_downsample = params['n_downsample']<br>
+&nbsp;&nbsp;&nbsp;&nbsp;n_res = params['n_res']<br>
 <br>
-class SimpleGNN(nn.Module):<br>
-&nbsp;&nbsp;def __init__(self, in_dim, hid_dim, out_dim):<br>
-&nbsp;&nbsp;&nbsp;&nbsp;super().__init__()<br>
-&nbsp;&nbsp;&nbsp;&nbsp;self.layer1 = nn.Linear(in_dim, hid_dim)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;self.layer2 = nn.Linear(hid_dim, out_dim)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 风格编码器 - 提取风格特征</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;norm='none', activ=params['activ'], <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pad_type=params['pad_type'])<br>
 <br>
-&nbsp;&nbsp;def forward(self, x):<br>
-&nbsp;&nbsp;&nbsp;&nbsp;x = torch.relu(self.layer1(x))<br>
-&nbsp;&nbsp;&nbsp;&nbsp;return self.layer2(x)
-                </div>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 内容编码器 - 提取内容特征</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'in', params['activ'], <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pad_type=params['pad_type'])<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 解码器 - 重建图像</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input_dim, res_norm='adain', <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;activ=params['activ'], pad_type=params['pad_type'])<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># MLP网络 - 生成AdaIN参数</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;params['mlp_dim'], 3, norm='none', activ=params['activ'])<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">encode</span>(self, images):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">"""编码图像为内容和风格特征"""</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;style_fake = self.enc_style(images)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;content = self.enc_content(images)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> content, style_fake<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">decode</span>(self, content, style):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">"""从内容和风格特征解码图像"""</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;adain_params = self.mlp(style)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.assign_adain_params(adain_params, self.dec)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;images = self.dec(content)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> images<br>
+            </div>
+
+            <div class="desc" style="margin-bottom:8px;">
+                <b>多尺度判别器</b>：
+            </div>
+            <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">MsImageDis</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self, input_dim, params):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>(MsImageDis, self).__init__()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.num_scales = params['num_scales']  <span class="cm"># 通常为3</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.downsample = nn.AvgPool2d(3, stride=2, padding=[1, 1], <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;count_include_pad=False)<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 为每个尺度创建判别器网络</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.cnns = nn.ModuleList()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">for</span> _ <span class="kw">in</span> range(self.num_scales):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;self.cnns.append(self._make_net())<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">forward</span>(self, x):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;outputs = []<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">for</span> model <span class="kw">in</span> self.cnns:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;outputs.append(model(x))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x = self.downsample(x)  <span class="cm"># 下采样到下一个尺度</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> outputs<br>
+            </div>
+
+            <div class="desc" style="margin-bottom:8px;">
+                整个生成过程通过MLP网络将风格编码转换为AdaIN参数，这些参数被动态地分配给解码器中的AdaIN层，从而实现风格特征对内容特征的调制，最终生成具有目标域风格特征的图像。
+            </div>
+
+            <h3>2、LoG损失函数</h3>
+            <div class="desc" style="margin-bottom:8px;">
+                本系统引入了专门的LoG损失函数来保持边缘细节，LoG损失通过在每个颜色通道上应用拉普拉斯高斯滤波器来提取边缘信息，然后比较原始图像和重建图像的边缘特征差异。
+            </div>
+            <b>实现原理</b>：
+            <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">LogEachBlock</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="cm">"""LoG Filter Block for LoG Loss, applied for each color channel"""</span><br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>(LogEachBlock, self).__init__()<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;np_filter2 = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.conv2 = nn.Conv2d(1, 1, kernel_size=3, stride=1, padding=1, bias=False)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.conv2.weight = nn.Parameter(torch.from_numpy(np_filter2).float().unsqueeze(0).unsqueeze(0))<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.avg_pool = torch.nn.AvgPool3d((3, 1, 1), stride=1)<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 固定滤波器权重，不参与梯度更新</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">for</span> param <span class="kw">in</span> self.conv2.parameters():<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;param.requires_grad = <span class="kw">False</span><br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">forward</span>(self, x):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;chan1 = x[:, 0, :, :].unsqueeze(1)  <span class="cm"># R通道</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;chan2 = x[:, 1, :, :].unsqueeze(1)  <span class="cm"># G通道</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;chan3 = x[:, 2, :, :].unsqueeze(1)  <span class="cm"># B通道</span><br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;filt1 = self.conv2(chan1)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;filt2 = self.conv2(chan2)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;filt3 = self.conv2(chan3)<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;concat = torch.cat((filt1, filt2, filt3), 1)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;output = self.avg_pool(concat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> output<br>
+            </div>
+
+            <div class="desc" style="margin-bottom:8px;">
+                <b>LoG损失调用</b>：
+            </div>
+            <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">LogLoss</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self, use_gpu=True):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>(LogLoss, self).__init__()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.log_block = LogEachBlock()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.loss = nn.L1Loss()<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__call__</span>(self, input_A, input_B):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;log_A = self.log_block(input_A)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;log_B = self.log_block(input_B)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> self.loss(log_A, log_B)<br>
             </div>
         </div>
 
         <div class="section">
-            <h2>深度网络结构图</h2>
-            <img src="assets/Interfuser_Structure.drawio.svg" alt="结构示意图" class="network-img">
+            <h2>网络结构图</h2>
+            <img src="assets/munit_architecture.svg" alt="结构示意图" class="network-img">
             <div style="text-align:center;color:#888;font-size:0.97rem;">
-                图示为典型的图神经网络结构，支持多层特征融合与端到端训练。
+                图示为系统主要生成器与判别器结构，支持端到端训练与多尺度特征融合。
             </div>
         </div>
 
         <div class="section">
             <h2>部署方式</h2>
             <div class="deploy-steps">
-                <div>1. 安装依赖环境：</div>
-                <div class="code-block">pip install torch numpy</div>
-                <div>2. 下载模型权重并准备数据集。</div>
-                <div>3. 运行主程序：</div>
-                <div class="code-block">python main.py --config config.yaml</div>
-                <div>4. 支持容器化部署（如 Docker），可根据实际需求集成到自动驾驶平台。</div>
+                <div>1、创建环境：</div>
+                <div class="code-block">conda create -n tir python=3.8.11</div>
+                <div>2、安装依赖包：</div>
+                <div class="code-block">pip install -r requirements.txt</div>
+                <div>3、推理命令：</div>
+                <div class="code-block">python3 inference_batch.py --input_folder {input dir to your RGB images} --output_folder {output dir to store your translated images} --checkpoint {weight_file address} --a2b 0 --seed {your choice} --num_style {number of tir styles to sample} --synchronized --output_only</div>
+                <div>例如，采样5种风格：</div>
+                <div class="code-block">python3 inference_batch.py --input_folder ./input --output_folder ./output --checkpoint ./translation_weights.pt --a2b 0 --seed 1234 --num_style 5 --synchronized --output_only --config configs/tir2rgb_folder.yaml</div>
             </div>
         </div>
 
         <div class="section">
             <h2>实现效果</h2>
             <div id="effect-demo" style="text-align:center;">
-                <div style="display: flex; justify-content: center; align-items: flex-start; gap: 2%; flex-wrap: wrap;">
-                    <img id="img-0194" src="assets/0194.jpg" class="effect-img" alt="0194原图" style="max-width:48%;min-width:220px;">
-                    <img id="img-0194-after" src="assets/0194_after.jpg" class="effect-img" alt="0194对比图" style="max-width:48%;min-width:220px;display:none;">
+                <button id="toggle-compare-btn" class="effect-toggle-btn">显示输出效果</button>
+                <div class="effect-img-group" id="input-group">
+                    <div class="effect-pair">
+                        <div class="effect-label">输入数据 1</div>
+                        <img src="assets/input1.jpg" class="effect-img" alt="输入示例1">
+                    </div>
+                    <div class="effect-pair">
+                        <div class="effect-label">输入数据 2</div>
+                        <img src="assets/input2.jpg" class="effect-img" alt="输入示例2">
+                    </div>
                 </div>
-                <button id="toggle-compare-btn" style="padding:8px 22px;font-size:1.05rem;border:none;border-radius:6px;background:#1769aa;color:#fff;cursor:pointer;margin:18px auto 10px auto;display:block;">查看对比</button>
+                <div class="effect-img-group" id="output-group" style="display:none;">
+                    <div class="effect-pair">
+                        <div class="effect-label">输出数据 1</div>
+                        <img src="assets/output1.jpg" class="effect-img" alt="输出示例1">
+                    </div>
+                    <div class="effect-pair">
+                        <div class="effect-label">输出数据 2</div>
+                        <img src="assets/output2.jpg" class="effect-img" alt="输出示例2">
+                    </div>
+                </div>
             </div>
             <div style="color:#888;font-size:0.97rem;text-align:center;">
-                点击“查看对比”可显示处理后效果。
+                点击“显示输出效果”可切换查看处理前后对比。
             </div>
             <script>
-            const btn = document.getElementById('toggle-compare-btn');
-            const afterImg = document.getElementById('img-0194-after');
-            let shown = false;
-            btn.onclick = function() {
-                shown = !shown;
-                afterImg.style.display = shown ? '' : 'none';
-                btn.textContent = shown ? '隐藏对比' : '查看对比';
-            };
+                const btn = document.getElementById('toggle-compare-btn');
+                const inputGroup = document.getElementById('input-group');
+                const outputGroup = document.getElementById('output-group');
+                let showingOutput = false;
+                btn.onclick = function() {
+                    showingOutput = !showingOutput;
+                    inputGroup.style.display = showingOutput ? 'none' : '';
+                    outputGroup.style.display = showingOutput ? '' : 'none';
+                    btn.textContent = showingOutput ? '显示输入效果' : '显示输出效果';
+                };
             </script>
         </div>
 
         <div class="footer">
-            &copy; 2024 施钧舰 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
+            &copy; 2024 杨涵青 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
         </div>
     </div>
 </body>
