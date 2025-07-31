@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法试用 | 高真实感红外数据生成</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+            background: #f6f8fa;
+            color: #23272f;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 48px 40px 40px 40px;
+        }
+        h1 {
+            color: #1769aa;
+            font-size: 2rem;
+            margin-bottom: 18px;
+            font-weight: 700;
+        }
+        .upload-btn {
+            display: block;
+            margin: 0 auto 24px auto;
+            padding: 12px 28px;
+            font-size: 1.08rem;
+            border: none;
+            border-radius: 8px;
+            background: #1769aa;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .upload-btn:hover {
+            background: #125b8c;
+        }
+        .result-area {
+            margin-top: 24px;
+            text-align: center;
+            min-height: 120px;
+            color: #888;
+            font-size: 1.08rem;
+        }
+        .preview-img {
+            max-width: 90%;
+            border-radius: 8px;
+            margin-top: 12px;
+            box-shadow: 0 1px 8px rgba(23,105,170,0.08);
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width:600px;margin:32px auto 0 auto;text-align:left;">
+        <a href="index.html" style="display:inline-block;padding:8px 18px;background:#e3eef7;color:#1769aa;border-radius:6px;text-decoration:none;font-size:1.02rem;font-weight:500;box-shadow:0 1px 6px rgba(23,105,170,0.06);transition:background 0.2s;">← 返回首页</a>
+    </div>
+    <div class="container">
+        <h1>算法试用</h1>
+        <div style="color:#1769aa;font-size:1.08rem;margin-bottom:18px;text-align:center;">
+            您可以在本页面上传任意图片，支持多张批量上传。
+            本质上您可以尝试任何图片，但随意的输入会耗费模型大量的推理资源，导致显存溢出
+            因此如果上传的是非交通场景图片，请不要超过3张。
+        </div>
+        <input type="file" id="img-upload" accept="image/*" multiple class="upload-btn" style="margin-bottom:12px;">
+        <button id="upload-btn" class="upload-btn" style="background:#28a745;margin-bottom:24px;" disabled>上传图片到服务器</button>
+        <div class="result-area" id="result-area">请选择一张或多张图片，然后点击上传按钮。</div>
+        <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">清除缓存</button>
+        <button id="run-infer-btn" class="upload-btn" style="background:#ff9800;margin-bottom:18px;">执行推理脚本</button>
+        <div id="infer-result" class="result-area"></div>
+        <div style="text-align:center;color:#888;font-size:1.02rem;margin-top:38px;">
+            前后端技术支持：施钧舰
+        </div>
+    </div>
+    <script>
+        // 清除缓存按钮事件
+        document.getElementById('clear-cache-btn').onclick = function() {
+            const inferResult = document.getElementById('infer-result');
+            inferResult.innerHTML = '';
+            result.innerHTML = '正在清除缓存...';
+            fetch('http://js2.blockelite.cn:11382/clear_cache', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.message) {
+                        result.innerHTML = `<div style="color:#1769aa;">${data.message}</div>`;
+                    } else {
+                        result.innerHTML = `<div style="color:red;">${data.error || '清除缓存失败'}</div>`;
+                    }
+                    // 清空本地状态
+                    selectedFile = null;
+                    uploadBtn.disabled = true;
+                    uploadBtn.style.background = '#ccc';
+                })
+                .catch(err => {
+                    result.innerHTML = `<div style="color:red;">清除缓存失败：${err}</div>`;
+                });
+        };
+        const upload = document.getElementById('img-upload');
+        const uploadBtn = document.getElementById('upload-btn');
+        const result = document.getElementById('result-area');
+        let selectedFiles = [];
+
+        // 页面加载时检测上传状态
+        window.onload = function() {
+            fetch('http://js2.blockelite.cn:11382/upload_status')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.has_image) {
+                        result.innerHTML = `已上传图片：${data.filename}，上传时间：${data.upload_time}`;
+                    } else {
+                        result.innerHTML = '请选择一张或多张图片，然后点击上传按钮。';
+                    }
+                });
+        };
+
+        // 文件选择事件（购物车式追加）
+        upload.onchange = function(e) {
+            const newFiles = Array.from(e.target.files);
+            // 追加新文件，避免重复（按文件名和大小去重）
+            newFiles.forEach(newFile => {
+                if (!selectedFiles.some(f => f.name === newFile.name && f.size === newFile.size)) {
+                    selectedFiles.push(newFile);
+                }
+            });
+            if (selectedFiles.length > 0) {
+                let previewHtml = `<div style=\"margin-bottom:15px;\">已选择 ${selectedFiles.length} 张图片：</div>`;
+                let loadedCount = 0;
+                let imgHtmlArr = new Array(selectedFiles.length);
+                selectedFiles.forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        imgHtmlArr[index] = `<img src=\"${ev.target.result}\" class=\"preview-img\" style=\"max-width:120px;margin:5px;\">`;
+                        loadedCount++;
+                        if (loadedCount === selectedFiles.length) {
+                            result.innerHTML = previewHtml + imgHtmlArr.join('');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+                uploadBtn.disabled = false;
+                uploadBtn.style.background = '#28a745';
+            } else {
+                result.innerHTML = '请选择一张或多张图片，然后点击上传按钮。';
+                uploadBtn.disabled = true;
+                uploadBtn.style.background = '#ccc';
+            }
+        };
+
+        // 上传按钮点击事件（批量上传）
+        uploadBtn.onclick = function() {
+            if (selectedFiles.length === 0) return;
+            result.innerHTML = `<div style=\"color:#1769aa;\">正在上传 ${selectedFiles.length} 张图片到服务器...</div>`;
+            uploadBtn.disabled = true;
+            uploadBtn.style.background = '#ccc';
+            let uploadCount = 0;
+            let successCount = 0;
+            let results = [];
+            selectedFiles.forEach((file, index) => {
+                const formData = new FormData();
+                formData.append('image', file);
+                fetch('http://js2.blockelite.cn:11382/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    uploadCount++;
+                    if (data.msg) {
+                        successCount++;
+                        results.push(`✓ ${file.name}: ${data.msg}`);
+                    } else {
+                        results.push(`✗ ${file.name}: ${data.error || '上传失败'}`);
+                    }
+                    result.innerHTML = `<div style=\"color:#1769aa;\">上传进度: ${uploadCount}/${selectedFiles.length}</div>`;
+                    if (uploadCount === selectedFiles.length) {
+                        result.innerHTML = `
+                            <div style=\"color:#1769aa;margin-bottom:10px;\">上传完成！成功: ${successCount}/${selectedFiles.length}</div>
+                            <div style=\"text-align:left;font-size:0.9rem;\">${results.join('<br>')}</div>
+                        `;
+                        uploadBtn.disabled = false;
+                        uploadBtn.style.background = '#28a745';
+                        selectedFiles = [];
+                    }
+                })
+                .catch(err => {
+                    uploadCount++;
+                    results.push(`✗ ${file.name}: ${err}`);
+                    result.innerHTML = `<div style=\"color:#1769aa;\">上传进度: ${uploadCount}/${selectedFiles.length}</div>`;
+                    if (uploadCount === selectedFiles.length) {
+                        result.innerHTML = `
+                            <div style=\"color:#1769aa;margin-bottom:10px;\">上传完成！成功: ${successCount}/${selectedFiles.length}</div>
+                            <div style=\"text-align:left;font-size:0.9rem;\">${results.join('<br>')}</div>
+                        `;
+                        uploadBtn.disabled = false;
+                        uploadBtn.style.background = '#28a745';
+                        selectedFiles = [];
+                    }
+                });
+            });
+        };
+        // 执行推理脚本按钮事件
+        document.getElementById('run-infer-btn').onclick = function() {
+            const inferResult = document.getElementById('infer-result');
+            inferResult.innerHTML = '正在执行服务器推理脚本...';
+            fetch('http://js2.blockelite.cn:11382/run_inference', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    let html = '';
+                    if (data.output) {
+                        html += `<div style=\"color:#1769aa;\">输出结果：<pre style=\"white-space:pre-wrap;\">${data.output}</pre></div>`;
+                    }
+                    if (data.result_images && data.result_images.length > 0) {
+                        html += '<div style=\"margin-top:10px;\">推理结果图片：</div>';
+                        data.result_images.forEach(img => {
+                            html += `<img src=\"data:image/png;base64,${img.data}\" class=\"preview-img\" style=\"max-width:220px;margin:8px;\">`;
+                        });
+                    }
+                    // 不显示错误信息
+                    inferResult.innerHTML = html;
+                })
+                .catch(err => {
+                    // 不显示前端请求失败信息
+                    inferResult.innerHTML = '';
+                });
+        };
+    </script>
+</body>
+</html>
