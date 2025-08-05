@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频去雾数据合成 | 杨涵青</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+      body {
+          margin: 0;
+          padding: 0;
+          font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+          background: #f6f8fa;
+          color: #23272f;
+          min-height: 100vh;
+      }
+      .container {
+          max-width: 900px;
+          margin: 40px auto;
+          background: #fff;
+          border-radius: 18px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+          padding: 48px 40px 40px 40px;
+      }
+      h1 {
+          color: #1769aa;
+          font-size: 2.6rem;
+          letter-spacing: 0.03em;
+          margin-bottom: 12px;
+          font-weight: 700;
+      }
+      h2 {
+          color: #23272f;
+          font-size: 1.6rem;
+          border-left: 4px solid #1769aa;
+          padding-left: 12px;
+          margin-top: 38px;
+          margin-bottom: 18px;
+          font-weight: 700;
+      }
+      h3 {
+          color: #1769aa;
+          font-size: 1.22rem;
+          margin-top: 28px;
+          margin-bottom: 10px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+      }
+      .desc {
+          font-size: 1.13rem;
+          margin-bottom: 24px;
+          line-height: 1.7;
+      }
+      .section {
+          margin-bottom: 38px;
+      }
+      .code-block, .idea-block {
+          background: #23272e;
+          color: #e6efff;
+          border-radius: 8px;
+          padding: 18px 22px;
+          font-size: 1rem;
+          font-family: 'Fira Mono', 'Consolas', monospace;
+          overflow-x: auto;
+          margin-bottom: 18px;
+          margin-top: 6px;
+          line-height: 1.7;
+      }
+      .code-block span, .idea-block span {
+          white-space: pre;
+      }
+      .deploy-steps {
+          background: #e3eef8;
+          border-radius: 8px;
+          padding: 18px 22px;
+          margin-bottom: 10px;
+          color: #1d2b36;
+          font-size: 1.05rem;
+      }
+      .effect-video-group {
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          gap: 2%;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+      }
+      .effect-pair {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 48%;
+          min-width: 220px;
+          margin-bottom: 10px;
+      }
+      .effect-video {
+          width: 100%;
+          max-width: 100%;
+          border-radius: 8px;
+          box-shadow: 0 1px 8px rgba(23,105,170,0.08);
+          margin-bottom: 6px;
+          transition: opacity 0.5s;
+      }
+      .effect-label {
+          color: #888;
+          font-size: 0.98rem;
+          text-align: center;
+          margin-bottom: 4px;
+      }
+      .footer {
+          text-align: center;
+          color: #888;
+          font-size: 0.98rem;
+          margin-top: 36px;
+      }
+      .effect-toggle-btn {
+          padding:8px 22px;
+          font-size:1.05rem;
+          border:none;
+          border-radius:6px;
+          background:#1769aa;
+          color:#fff;
+          cursor:pointer;
+          margin:18px auto 10px auto;
+          display:block;
+          transition: background 0.2s;
+      }
+      .effect-toggle-btn:hover {
+          background: #125b8c;
+      }
+      @media (max-width: 800px) {
+          .effect-video-group { flex-direction: column; gap: 0; }
+          .effect-pair { width: 100%; min-width: 0; margin-bottom: 24px; }
+      }
+      @media (max-width: 600px) {
+          .container { padding: 18px 8px; }
+          h1 { font-size: 2rem; }
+          h2 { font-size: 1.1rem; }
+      }
+      /* IDEA风格代码高亮（简化） */
+      .kw { color: #c792ea; }
+      .cls { color: #82aaff; }
+      .cm { color: #999; font-style: italic; }
+      .fn { color: #82aaff; }
+      .str { color: #ecc48d; }
+      .num { color: #f78c6c; }
+  </style>
+</head>
+<body>
+  <div style="max-width:600px;margin:32px auto 0 auto;text-align:left;">
+      <a href="index.html" style="display:inline-block;padding:8px 18px;background:#e3eef7;color:#1769aa;border-radius:6px;text-decoration:none;font-size:1.02rem;font-weight:500;box-shadow:0 1px 6px rgba(23,105,170,0.06);transition:background 0.2s;">← 返回首页</a>
+  </div>
+  <div class="container">
+      <h1>视频去雾数据合成</h1>
+      <div class="desc">
+          本系统实现了一个架构视频数据合成模型，专门针对视频序列中的雾霾去除任务而设计。核心创新在于其多范围时间对齐机制和物理先验引导策略，该方法将视频去雾问题分解为三个关键组件：多物理先验引导、多范围时间对齐和全局多范围聚合。与传统的单帧去雾方法不同，本系统充分利用视频帧间的时间相关性和互补信息。模型通过实现精确的特征对齐，能够自适应地学习不同帧之间的空间变形关系，从而有效处理视频中的运动模糊和时间不一致性问题。物理先验模块基于大气散射模型和深度估计模型，显式地建模雾霾的形成过程，通过估计透射率图和大气光值来指导去雾过程，这种物理感知的设计使得模型在处理不同浓度和类型的雾霾时具有更强的泛化能力。<br>
+          <b>作者：</b>杨涵青，中国科学技术大学
+      </div>
+
+      <div class="section">
+          <h2>代码简介</h2>
+
+          <h3>1、网络架构设计</h3>
+          <div class="desc" style="margin-bottom:10px;">
+              系统采用编码器-解码器架构，其中编码器提取多尺度特征，解码器通过先验解码层和场景解码层逐步重建清晰的视频帧。整个网络包含四个主要阶段，每个阶段处理不同分辨率的特征图。
+          </div>
+          <b>主网络结构（MAPNet）</b>：
+          <div class="code-block idea-block">
+<span class="cm">@BACKBONES.register_module()</span><br>
+<span class="kw">class</span> <span class="cls">MAPNet</span>(BaseModule):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;backbone,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;neck,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;upsampler,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;channels=<span class="num">32</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_trans_bins=<span class="num">32</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;align_depths=(<span class="num">1</span>, <span class="num">1</span>, <span class="num">1</span>, <span class="num">1</span>),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_kv_frames=(<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>)):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>().__init__()<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 骨干网络用于特征提取</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.backbone = builder.build_component(backbone)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.neck = builder.build_component(neck)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.upsampler = builder.build_component(upsampler)<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 构建先验解码层和场景解码层</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.prior_decoder_layers = nn.ModuleList()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.scene_decoder_layers = nn.ModuleList()<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">forward</span>(self, lqs):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">"""前向传播函数<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Args:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lqs (Tensor): 输入的有雾视频序列，形状为 (n, t, c, h, w)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Returns:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;out (Tensor): 输出的无雾视频序列，形状为 (n, t, c, h, w)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"""</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;n, T, c, h, w = lqs.shape<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> dict(out=torch.stack(out_js, dim=<span class="num">1</span>))
+          </div>
+
+          <div class="desc" style="margin-bottom:8px;">
+              <b>空间-时间变形对齐模块</b>：
+          </div>
+          <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">STDALayer</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;embed_dims,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_heads,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;window_size=<span class="num">7</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shift=<span class="kw">False</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;offset_range_factor=<span class="num">0</span>):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>().__init__()<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 交叉注意力机制</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.cross_attn = STDAWindowMSA(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;embed_dims=embed_dims, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_heads=num_heads, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;window_size=window_size,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;offset_range_factor=offset_range_factor<br>
+&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">forward</span>(self, q, kv, hw_shape, grid):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 空间-时间变形对齐</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;deform_inputs = self._get_deform_inputs(q, hw_shape)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x, grid, ref = self.cross_attn(q, kv, hw_shape, deform_inputs, grid)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> x, grid, ref
+          </div>
+
+          <h3>2、物理先验引导</h3>
+          <div class="desc" style="margin-bottom:8px;">
+              物理先验引导模块基于大气散射模型显式地建模雾霾的物理特性，通过估计透射率图t和大气光值A来指导去雾过程。
+          </div>
+          <b>先验解码层实现</b>：
+          <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">PriorDecodeLayer</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;channels,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;level,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_trans_bins=<span class="num">32</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;memory_enhance=<span class="kw">True</span>):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>().__init__()<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 透射率估计头</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.head_t = nn.Sequential(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nn.Conv2d(channels, channels, <span class="num">3</span>, <span class="num">1</span>, <span class="num">1</span>), <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nn.LeakyReLU(negative_slope=<span class="num">0.1</span>, inplace=<span class="kw">True</span>),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nn.Conv2d(channels, num_trans_bins, <span class="num">1</span>, <span class="num">1</span>, <span class="num">0</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 大气光估计头</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.head_a = nn.Sequential(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nn.AdaptiveAvgPool2d(<span class="num">1</span>),<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nn.Conv2d(channels, channels, <span class="num">1</span>, <span class="num">1</span>, <span class="num">0</span>), <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nn.Sigmoid()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;)<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">forward</span>(self, feats):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 估计透射率分布和大气光值</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;logit_t = self.head_t(feat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;out_a = self.head_a(feat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> feats
+          </div>
+
+          <h3>3、流式变形机制</h3>
+          <div class="desc" style="margin-bottom:8px;">
+              系统使用5D流式变形来处理视频序列中的运动和变形，支持空间-时间维度的特征对齐。
+          </div>
+          <b>流式变形实现</b>：
+          <div class="code-block idea-block">
+<span class="kw">def</span> <span class="fn">flow_warp_5d</span>(x, flow, interpolation=<span class="str">'bilinear'</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;padding_mode=<span class="str">'zeros'</span>, align_corners=<span class="kw">True</span>):<br>
+&nbsp;&nbsp;<span class="str">"""5D流式变形函数<br>
+&nbsp;&nbsp;Args:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x (Tensor): 输入特征，形状为 (n, c, d, h, w)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flow (Tensor): 流场，形状为 (n, d, h, w, 3)<br>
+&nbsp;&nbsp;Returns:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tensor: 变形后的特征图<br>
+&nbsp;&nbsp;"""</span><br>
+&nbsp;&nbsp;_, _, d, h, w = x.size()<br>
+<br>
+&nbsp;&nbsp;<span class="cm"># 创建网格坐标</span><br>
+&nbsp;&nbsp;grid_y, grid_x = torch.meshgrid(torch.arange(<span class="num">0</span>, h), torch.arange(<span class="num">0</span>, w))<br>
+&nbsp;&nbsp;grid = torch.stack((grid_x, grid_y, grid_z), <span class="num">2</span>).type_as(x)<br>
+<br>
+&nbsp;&nbsp;<span class="cm"># 执行网格采样</span><br>
+&nbsp;&nbsp;output = F.grid_sample(x, grid_flow, mode=interpolation)<br>
+&nbsp;&nbsp;<span class="kw">return</span> output
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>部署方式</h2>
+          <div class="deploy-steps">
+              <div>1、创建环境：</div>
+              <div class="code-block">conda create -n video python=3.10.9<br>conda activate video</div>
+              <div>2、安装依赖包：</div>
+              <div class="code-block"># 安装PyTorch<br>conda install pytorch==1.12.1 torchvision==0.13.1 cudatoolkit=11.3 -c pytorch<br><br># 安装MMCV<br>pip3 install openmim<br>mim install mmcv-full<br><br># 安装其他依赖<br>pip install -r requirements.txt</div>
+              <div>3、训练模型：</div>
+              <div class="code-block">bash tools/dist_train.sh configs/dehazers/mapnet/mapnet_hazeworld.py 4</div>
+              <div>4、测试推理：</div>
+              <div class="code-block">CUDA_VISIBLE_DEVICES=1 python tools/test.py \<br>&nbsp;&nbsp;&nbsp;configs/dehazers/mapnet/mapnet_hazeworld.py \<br>&nbsp;&nbsp;&nbsp;iter_40000.pth \<br>&nbsp;&nbsp;&nbsp;--input-folder /path/to/your/hazy/videos \<br>&nbsp;&nbsp;&nbsp;--save-path /path/to/output/results</div>
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>实现效果</h2>
+          <div class="effect-video-group">
+              <div class="effect-pair">
+                  <div class="effect-label">处理前视频</div>
+                  <video class="effect-video" controls muted loop>
+                      <source src="assets/video_1.mp4" type="video/mp4">
+                      您的浏览器不支持视频播放。
+                  </video>
+              </div>
+              <div class="effect-pair">
+                  <div class="effect-label">处理后视频</div>
+                  <video class="effect-video" controls muted loop>
+                      <source src="assets/video_2.mp4" type="video/mp4">
+                      您的浏览器不支持视频播放。
+                  </video>
+              </div>
+          </div>
+          <div style="color:#888;font-size:0.97rem;text-align:center;">
+              系统支持多种分辨率的视频输入，保持原始帧率输出。
+          </div>
+      </div>
+
+      <div class="footer">
+          &copy; 2024 杨涵青 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
+          <br><br>
+          <a href="trial.html" style="display:inline-block;padding:12px 32px;margin-top:18px;background:#1769aa;color:#fff;border-radius:8px;font-size:1.13rem;text-decoration:none;box-shadow:0 2px 8px rgba(23,105,170,0.10);transition:background 0.2s;">算法试用</a>
+      </div>
+  </div>
+</body>
+</html>
