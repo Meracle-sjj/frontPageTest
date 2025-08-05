@@ -160,7 +160,7 @@
     <div class="container">
         <h1>雷达数据生成</h1>
         <div class="desc">
-            本系统实现了一个基于得分匹配扩散模型的生成框架，专门用于真实LiDAR点云的无监督建模与生成。核心思想是将点云生成任务建模为在等矩形视图上的去噪过程，从而构建一个物理可行且结构可控的点云生成模型。系统通过学习一个在等矩形图像空间中定义的得分函数，该函数近似目标点云分布的对数梯度，并通过Langevin动态过程逐步引导初始随机噪声收敛为真实感强的LiDAR点云。这种基于物理感知建模的策略显著提升了生成样本的几何一致性和结构合理性。在实现细节上，将原始三维点云投影为双通道深度加强度的等矩形图像，并引入圆形卷积以保留视图在水平维度上的连续性，同时利用角度坐标作为额外输入引导网络捕捉激光束在不同方向上的统计偏差，从而更好地还原城市环境中复杂的空间结构。<br>
+            本系统实现了一个基于得分匹配扩散模型的生成框架，专门用于真实LiDAR点云的无监督建模与生成。核心思想是将点云生成任务建模为在等矩形视图上的去噪过程，从而构建一个物理可行且结构可控的点云生成模型。系统通过学习一个在等矩形图像空间中定义的得分函数，该函数近似目标点云分布的对数梯度，并通过Langevin动态过程逐步引导初始随机噪声收敛为真实感强的LiDAR点云。这种基于物理感知建模的策略显著提升了生成样本的几何一致性和结构合理性。在实现细节上，将原始三维点云投影为距离图，并引入圆形卷积以保留视图在水平维度上的连续性，同时利用角度坐标作为额外输入引导网络捕捉激光束在不同方向上的统计偏差，从而更好地还原城市环境中复杂的空间结构。<br>
             <b>作者：</b>黄非凡，中国科学技术大学
         </div>
 
@@ -354,7 +354,7 @@ perturbed_samples = samples + noise<br>
         </div>
 
         <div class="footer">
-            &copy; 2024 黄非凡 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
+            &copy; 2025 黄非凡 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
             <br><br>
             <a href="trial.html" style="display:inline-block;padding:12px 32px;margin-top:18px;background:#1769aa;color:#fff;border-radius:8px;font-size:1.13rem;text-decoration:none;box-shadow:0 2px 8px rgba(23,105,170,0.10);transition:background 0.2s;">算法试用</a>
         </div>

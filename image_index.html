@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>基于Fourier分析的神经隐式表达 李齐彪</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+      body {
+          margin: 0;
+          padding: 0;
+          font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+          background: #f6f8fa;
+          color: #23272f;
+          min-height: 100vh;
+      }
+      .container {
+          max-width: 900px;
+          margin: 40px auto;
+          background: #fff;
+          border-radius: 18px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+          padding: 48px 40px 40px 40px;
+      }
+      h1 {
+          color: #1769aa;
+          font-size: 2.6rem;
+          letter-spacing: 0.03em;
+          margin-bottom: 12px;
+          font-weight: 700;
+      }
+      h2 {
+          color: #23272f;
+          font-size: 1.6rem;
+          border-left: 4px solid #1769aa;
+          padding-left: 12px;
+          margin-top: 38px;
+          margin-bottom: 18px;
+          font-weight: 700;
+      }
+      h3 {
+          color: #1769aa;
+          font-size: 1.22rem;
+          margin-top: 28px;
+          margin-bottom: 10px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+      }
+      .desc {
+          font-size: 1.13rem;
+          margin-bottom: 24px;
+          line-height: 1.7;
+      }
+      .section {
+          margin-bottom: 38px;
+      }
+      .code-block, .idea-block {
+          background: #23272e;
+          color: #e6efff;
+          border-radius: 8px;
+          padding: 18px 22px;
+          font-size: 1rem;
+          font-family: 'Fira Mono', 'Consolas', monospace;
+          overflow-x: auto;
+          margin-bottom: 18px;
+          margin-top: 6px;
+          line-height: 1.7;
+      }
+      .code-block span, .idea-block span {
+          white-space: pre;
+      }
+      .network-img {
+          display: block;
+          margin: 0 auto 16px auto;
+          max-width: 100%;
+          border-radius: 8px;
+          box-shadow: 0 2px 12px rgba(23,105,170,0.10);
+      }
+      .deploy-steps {
+          background: #e3eef8;
+          border-radius: 8px;
+          padding: 18px 22px;
+          margin-bottom: 10px;
+          color: #1d2b36;
+          font-size: 1.05rem;
+      }
+      .effect-img-group {
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          gap: 2%;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+      }
+      .effect-pair {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 30%;
+          min-width: 200px;
+          margin-bottom: 10px;
+      }
+      .effect-img {
+          width: 100%;
+          max-width: 100%;
+          border-radius: 8px;
+          box-shadow: 0 1px 8px rgba(23,105,170,0.08);
+          margin-bottom: 6px;
+          transition: opacity 0.5s;
+      }
+      .effect-label {
+          color: #888;
+          font-size: 0.98rem;
+          text-align: center;
+          margin-bottom: 4px;
+      }
+      .footer {
+          text-align: center;
+          color: #888;
+          font-size: 0.98rem;
+          margin-top: 36px;
+      }
+      .contribution-list {
+          background: #f8f9fa;
+          border-left: 4px solid #28a745;
+          padding: 18px 22px;
+          margin-bottom: 18px;
+          border-radius: 8px;
+      }
+      .contribution-list ul {
+          margin: 0;
+          padding-left: 20px;
+          line-height: 1.8;
+      }
+      .contribution-list li {
+          margin-bottom: 8px;
+      }
+      .dataset-structure {
+          background: #fff3cd;
+          border: 1px solid #ffeaa7;
+          border-radius: 8px;
+          padding: 18px 22px;
+          margin-bottom: 18px;
+          font-family: 'Fira Mono', 'Consolas', monospace;
+          font-size: 0.95rem;
+          line-height: 1.6;
+      }
+      @media (max-width: 800px) {
+          .effect-img-group { flex-direction: column; gap: 0; }
+          .effect-pair { width: 100%; min-width: 0; margin-bottom: 24px; }
+      }
+      @media (max-width: 600px) {
+          .container { padding: 18px 8px; }
+          h1 { font-size: 2rem; }
+          h2 { font-size: 1.1rem; }
+      }
+      /* IDEA风格代码高亮（简化） */
+      .kw { color: #c792ea; }
+      .cls { color: #82aaff; }
+      .cm { color: #999; font-style: italic; }
+      .fn { color: #82aaff; }
+      .str { color: #ecc48d; }
+      .num { color: #f78c6c; }
+  </style>
+</head>
+<body>
+  <div style="max-width:600px;margin:32px auto 0 auto;text-align:left;">
+      <a href="index.html" style="display:inline-block;padding:8px 18px;background:#e3eef7;color:#1769aa;border-radius:6px;text-decoration:none;font-size:1.02rem;font-weight:500;box-shadow:0 1px 6px rgba(23,105,170,0.06);transition:background 0.2s;">← 返回首页</a>
+  </div>
+  <div class="container">
+      <h1>基于Fourier分析的神经隐式表达</h1>
+      <div class="desc">
+          本系统实现了一个基于Fourier分析理论的神经隐式表达方法，专门用于新视角图像合成任务。传统方法如多分辨率hash grid编码虽然有效，但存在特征空间与解码器空间之间缺乏协调、不同分辨率层级之间耦合严重等问题。本研究引入Fourier分析理论来改善特征解耦与分辨率协调问题，通过将网格特征转换为具有时频特性的多尺度Fourier特征，并将解码器函数空间表示为多个正交子空间的线性组合，实现了更高效的神经表示学习。该方法在保持甚至提升精度的同时，模型更小、更快、更高效，在Synthetic-NeRF、Tanks & Temples、BlendedMVS三个数据集上的实验结果验证了方法的有效性。<br>
+          <b>作者：</b>李齐彪，中国科学技术大学
+      </div>
+
+      <div class="section">
+          <h2>方法介绍</h2>
+
+          <h3>研究背景</h3>
+          <div class="desc">
+              神经表示广泛应用于图像、3D几何、辐射场等数字信号建模领域，如NeRF、NeuS等经典方法。传统方法如多分辨率hash grid编码（例如Instant-NGP）虽然在性能上表现优异，但仍存在一些关键问题：特征空间与解码器空间之间缺乏有效协调机制，不同分辨率层级之间存在严重的耦合问题，这些问题限制了模型的表达能力和训练效率。为了解决这些挑战，本文尝试引入Fourier分析理论来改善特征解耦与分辨率协调问题。
+          </div>
+
+          <h3>主要贡献</h3>
+          <div class="contribution-list">
+              <ul>
+                  <li><strong>理论分析</strong>：深入分析了grid编码空间和解码函数空间，建立了Fourier正交分解在神经表示中的数学基础，为后续方法设计提供了理论支撑。</li>
+                  <li><strong>Fourier编码</strong>：提出了将网格特征转换为具有时频特性的多尺度Fourier特征的方法，显著增强了不同特征之间的解耦能力。</li>
+                  <li><strong>Fourier分解框架</strong>：设计了将解码器函数空间表示为多个正交子空间线性组合的框架，每个子空间对应一个特定频率的Fourier基，采用受Gram-Schmidt正交化启发的结构化信号流进行逐层构建。</li>
+              </ul>
+          </div>
+
+          <h3>技术方法</h3>
+          <div class="desc">
+              整个方法包含三个核心组件：编码模块使用多分辨率哈希网格编码，将空间位置映射为特征向量；正交分解模块将解码函数空间（Hilbert空间）分解为多个Fourier正交子空间；投影与重构模块中每个子空间的基函数由Fourier网络建模，最终输出为这些子空间的加权组合。这种设计使得模型能够更好地处理不同频率成分的信息，实现更精确的场景重建。
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>环境配置</h2>
+          <div class="deploy-steps">
+              <div>快速环境配置：</div>
+              <div class="code-block">bash setup_env.sh</div>
+              <div>该脚本将自动安装所有必需的依赖包和配置环境。</div>
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>快速开始</h2>
+
+          <h3>新视角图像合成</h3>
+          <div class="desc">
+              新视角图像合成是本方法的主要应用场景，通过训练神经辐射场模型来实现从有限视角图像生成任意新视角的高质量图像。
+          </div>
+
+          <img src="assets/image_1.png" alt="新视角图像合成示意图" class="network-img">
+          <div style="text-align:center;color:#888;font-size:0.97rem;margin-bottom:20px;">
+              新视角图像合成流程示意图，展示了从输入多视角图像到生成新视角图像的完整过程。
+          </div>
+
+          <div class="deploy-steps">
+              <div>训练命令：</div>
+              <div class="code-block">python train_nerf.py --root_dir &lt;path/to/lego&gt; --exp_name Trunk --num_epochs 30 --lr 2e-2 --eval_lpips --no_save_test --exp_root_dir experiment/</div>
+              <div>参数说明：</div>
+              <div style="margin-top:10px;">
+                  • <code>--no_save_test</code> 表示不保存测试合成图像<br>
+                  • <code>--eval_lpips</code> 启用LPIPS感知距离指标评估<br>
+                  • <code>--exp_root_dir experiment/</code> 设置实验结果保存路径<br>
+                  • <code>--exp_name Trunk</code> 设置实验名称，模型和日志将保存在experiment/Trunk/目录中
+              </div>
+          </div>
+
+          <h3>合成数据实例</h3>
+          <div class="effect-img-group">
+              <div class="effect-pair">
+                  <div class="effect-label">合成结果 1</div>
+                  <img src="assets/image_2.png" class="effect-img" alt="合成结果1">
+              </div>
+              <div class="effect-pair">
+                  <div class="effect-label">合成结果 2</div>
+                  <img src="assets/image_3.png" class="effect-img" alt="合成结果2">
+              </div>
+              <div class="effect-pair">
+                  <div class="effect-label">合成结果 3</div>
+                  <img src="assets/image_4.png" class="effect-img" alt="合成结果3">
+              </div>
+          </div>
+          <div style="color:#888;font-size:0.97rem;text-align:center;margin-bottom:20px;">
+              更多详细数据请查看 ./experiments/Truck 目录
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>图像压缩任务</h2>
+          <div class="desc">
+              除了新视角合成，本方法还可以应用于图像压缩任务，通过神经隐式表达来实现高效的图像编码和重建。
+          </div>
+
+          <img src="assets/image_5.png" alt="图像压缩效果" class="network-img">
+          <div style="text-align:center;color:#888;font-size:0.97rem;margin-bottom:20px;">
+              2D图像拟合与压缩效果展示，显示了方法在图像压缩任务上的优异性能。
+          </div>
+
+          <div class="deploy-steps">
+              <div>图像压缩命令：</div>
+              <div class="code-block">python train_img.py --config &lt;path/to/config.json&gt; --input_path &lt;path/to/image&gt;</div>
+              <div>该命令将根据配置文件对指定图像进行神经隐式表达训练，实现高质量的图像压缩。</div>
+          </div>
+      </div>
+
+      <div class="section">
+          <h2>数据集准备</h2>
+          <div class="desc">
+              本系统支持用户自定义数据集，数据集格式参考Facebook Research NSVF数据集标准。以下是详细的数据集结构说明和准备步骤。
+          </div>
+
+          <h3>数据集结构</h3>
+          <div class="dataset-structure">
+&lt;dataset_name&gt;
+│-- bbox.txt           # 包含边界框和初始体素尺寸的文件  
+│-- intrinsics.txt     # 4x4 相机内参矩阵  
+│  
+├── rgb/               # 每一视角对应的图像文件夹
+│   ├── 0.png          # 第0视角图像  
+│   ├── 1.png          # 第1视角图像  
+│   └── ...  
+│  
+├── pose/              # 每一视角对应的相机位姿 (4x4矩阵)  
+│   ├── 0.txt          # 第0视角的相机姿态  
+│   ├── 1.txt          # 第1视角的相机姿态  
+│   └── ...  
+│  
+└── [可选 test_traj.txt]   # 用于自由视角渲染展示的相机轨迹（4N x 4矩阵）
+          </div>
+
+          <h3>bbox.txt 文件格式</h3>
+          <div class="desc">
+              该文件仅包含一行，描述了空间边界框与初始体素大小：
+          </div>
+          <div class="code-block">x_min y_min z_min x_max y_max z_max initial_voxel_size</div>
+          <div class="desc">
+              例如：
+          </div>
+          <div class="code-block">-1.0 -1.0 -1.0 1.0 1.0 1.0 0.01</div>
+
+          <h3>重要说明</h3>
+          <div class="contribution-list">
+              <ul>
+                  <li>图像（rgb/*.png）和相机姿态文件（pose/*.txt）的文件名不必完全一致，但在按字符串排序后，两者的顺序必须一一对应。</li>
+                  <li>数据划分示例：train（第0到99视角）、valid（第100到199视角）、test（第200到399视角），可根据任务需要调整。</li>
+                  <li>若包含test_traj.txt，将用于可视化自由视角路径渲染。</li>
+                  <li>所有4x4矩阵建议使用空格分隔，并以行主序存储。</li>
+                  <li>建议图像尺寸统一以避免训练时的兼容问题。</li>
+              </ul>
+          </div>
+      </div>
+
+      <div class="footer">
+          &copy; 2025 李齐彪 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
+          <br><br>
+          <a href="trial.html" style="display:inline-block;padding:12px 32px;margin-top:18px;background:#1769aa;color:#fff;border-radius:8px;font-size:1.13rem;text-decoration:none;box-shadow:0 2px 8px rgba(23,105,170,0.10);transition:background 0.2s;">算法试用</a>
+      </div>
+  </div>
+</body>
+</html>
