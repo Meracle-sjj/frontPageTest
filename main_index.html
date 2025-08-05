@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中科大测试项目 | 数据合成平台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+            background: #f6f8fa;
+            color: #23272f;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 48px 40px 40px 40px;
+        }
+        h1 {
+            color: #1769aa;
+            font-size: 2.8rem;
+            letter-spacing: 0.03em;
+            margin-bottom: 24px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .desc {
+            font-size: 1.18rem;
+            margin-bottom: 36px;
+            line-height: 1.7;
+            text-align: center;
+            color: #555;
+        }
+        .project-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+            box-shadow: 0 2px 12px rgba(23,105,170,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .project-table th {
+            background: #1769aa;
+            color: #fff;
+            padding: 18px 16px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-align: center;
+            border: none;
+        }
+        .project-table td {
+            padding: 20px 16px;
+            text-align: center;
+            border-bottom: 1px solid #e8e8e8;
+            font-size: 1.05rem;
+            vertical-align: middle;
+        }
+        .project-table tr:last-child td {
+            border-bottom: none;
+        }
+        .project-table tr:hover {
+            background: #f8fbff;
+        }
+        .project-name {
+            font-weight: 600;
+            color: #1769aa;
+        }
+        .researcher-name {
+            color: #333;
+            font-weight: 500;
+        }
+        .btn-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #1769aa;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin: 0 4px;
+        }
+        .btn-link:hover {
+            background: #125b8c;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(23,105,170,0.2);
+        }
+        .btn-link.disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .working-status {
+            color: #666;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+        .footer {
+            text-align: center;
+            color: #888;
+            font-size: 0.98rem;
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid #e8e8e8;
+        }
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 24px 20px;
+            }
+            h1 {
+                font-size: 2.2rem;
+            }
+            .project-table {
+                font-size: 0.9rem;
+            }
+            .project-table th,
+            .project-table td {
+                padding: 12px 8px;
+            }
+            .btn-link {
+                display: block;
+                margin: 4px 0;
+                font-size: 0.85rem;
+            }
+        }
+        @media (max-width: 600px) {
+            .project-table,
+            .project-table thead,
+            .project-table tbody,
+            .project-table th,
+            .project-table td,
+            .project-table tr {
+                display: block;
+            }
+            .project-table thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            .project-table tr {
+                border: 1px solid #ccc;
+                margin-bottom: 10px;
+                padding: 10px;
+                border-radius: 8px;
+                background: #fff;
+            }
+            .project-table td {
+                border: none;
+                position: relative;
+                padding-left: 25%;
+                text-align: left;
+            }
+            .project-table td:before {
+                content: attr(data-label) ": ";
+                position: absolute;
+                left: 6px;
+                width: 20%;
+                font-weight: 600;
+                color: #1769aa;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>中科大测试项目</h1>
+        <div class="desc">
+            基于深度学习的多模态数据合成平台，涵盖图像、雷达、视频和红外等多种数据类型的智能生成与处理技术。
+            <br>致力于为科研和工程应用提供高质量的合成数据解决方案。
+        </div>
+
+        <table class="project-table">
+            <thead>
+                <tr>
+                    <th>项目名称</th>
+                    <th>负责人</th>
+                    <th>介绍页面</th>
+                    <th>试用界面</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td data-label="项目名称" class="project-name">图像数据合成模块</td>
+                    <td data-label="负责人" class="researcher-name">李齐彪</td>
+                    <td data-label="介绍页面">
+                        <span class="working-status">Working</span>
+                    </td>
+                    <td data-label="试用界面">
+                        <span class="working-status">Working</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td data-label="项目名称" class="project-name">雷达数据合成模块</td>
+                    <td data-label="负责人" class="researcher-name">黄非凡</td>
+                    <td data-label="介绍页面">
+                        <a href="lidar_index.html" class="btn-link">查看详情</a>
+                    </td>
+                    <td data-label="试用界面">
+                        <span class="working-status">Working</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td data-label="项目名称" class="project-name">视频数据合成模块</td>
+                    <td data-label="负责人" class="researcher-name">杨涵青</td>
+                    <td data-label="介绍页面">
+                        <span class="working-status">Working</span>
+                    </td>
+                    <td data-label="试用界面">
+                        <span class="working-status">Working</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td data-label="项目名称" class="project-name">红外数据合成模块</td>
+                    <td data-label="负责人" class="researcher-name">杨涵青</td>
+                    <td data-label="介绍页面">
+                        <a href="index.html" class="btn-link">查看详情</a>
+                    </td>
+                    <td data-label="试用界面">
+                        <a href="trial.html" class="btn-link">在线试用</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            &copy; 2024 中国科学技术大学 | 数据合成技术研究团队
+            <br><br>
+            <div style="font-size:0.9rem;color:#aaa;">
+                Platform Version 1.0 | Last Updated: 2024-08-05
+            </div>
+        </div>
+    </div>
+</body>
+</html>

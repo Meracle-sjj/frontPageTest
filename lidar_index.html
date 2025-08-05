@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雷达数据生成 | 黄非凡</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+            background: #f6f8fa;
+            color: #23272f;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 48px 40px 40px 40px;
+        }
+        h1 {
+            color: #1769aa;
+            font-size: 2.6rem;
+            letter-spacing: 0.03em;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+        h2 {
+            color: #23272f;
+            font-size: 1.6rem;
+            border-left: 4px solid #1769aa;
+            padding-left: 12px;
+            margin-top: 38px;
+            margin-bottom: 18px;
+            font-weight: 700;
+        }
+        h3 {
+            color: #1769aa;
+            font-size: 1.22rem;
+            margin-top: 28px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+        .desc {
+            font-size: 1.13rem;
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+        .section {
+            margin-bottom: 38px;
+        }
+        .code-block, .idea-block {
+            background: #23272e;
+            color: #e6efff;
+            border-radius: 8px;
+            padding: 18px 22px;
+            font-size: 1rem;
+            font-family: 'Fira Mono', 'Consolas', monospace;
+            overflow-x: auto;
+            margin-bottom: 18px;
+            margin-top: 6px;
+            line-height: 1.7;
+        }
+        .code-block span, .idea-block span {
+            white-space: pre;
+        }
+        .network-img {
+            display: block;
+            margin: 0 auto 16px auto;
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(23,105,170,0.10);
+        }
+        .deploy-steps {
+            background: #e3eef8;
+            border-radius: 8px;
+            padding: 18px 22px;
+            margin-bottom: 10px;
+            color: #1d2b36;
+            font-size: 1.05rem;
+        }
+        .effect-img-group {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 2%;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .effect-pair {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 48%;
+            min-width: 220px;
+            margin-bottom: 10px;
+        }
+        .effect-img {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 1px 8px rgba(23,105,170,0.08);
+            margin-bottom: 6px;
+            transition: opacity 0.5s;
+        }
+        .effect-label {
+            color: #888;
+            font-size: 0.98rem;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .footer {
+            text-align: center;
+            color: #888;
+            font-size: 0.98rem;
+            margin-top: 36px;
+        }
+        .effect-toggle-btn {
+            padding:8px 22px;
+            font-size:1.05rem;
+            border:none;
+            border-radius:6px;
+            background:#1769aa;
+            color:#fff;
+            cursor:pointer;
+            margin:18px auto 10px auto;
+            display:block;
+            transition: background 0.2s;
+        }
+        .effect-toggle-btn:hover {
+            background: #125b8c;
+        }
+        @media (max-width: 800px) {
+            .effect-img-group { flex-direction: column; gap: 0; }
+            .effect-pair { width: 100%; min-width: 0; margin-bottom: 24px; }
+        }
+        @media (max-width: 600px) {
+            .container { padding: 18px 8px; }
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.1rem; }
+        }
+        /* IDEA风格代码高亮（简化） */
+        .kw { color: #c792ea; }
+        .cls { color: #82aaff; }
+        .cm { color: #999; font-style: italic; }
+        .fn { color: #82aaff; }
+        .str { color: #ecc48d; }
+        .num { color: #f78c6c; }
+    </style>
+</head>
+<body>
+    <div style="max-width:600px;margin:32px auto 0 auto;text-align:left;">
+        <a href="main_index.html" style="display:inline-block;padding:8px 18px;background:#e3eef7;color:#1769aa;border-radius:6px;text-decoration:none;font-size:1.02rem;font-weight:500;box-shadow:0 1px 6px rgba(23,105,170,0.06);transition:background 0.2s;">← 返回首页</a>
+    </div>
+    <div class="container">
+        <h1>雷达数据生成</h1>
+        <div class="desc">
+            本系统实现了一个基于得分匹配扩散模型的生成框架，专门用于真实LiDAR点云的无监督建模与生成。核心思想是将点云生成任务建模为在等矩形视图上的去噪过程，从而构建一个物理可行且结构可控的点云生成模型。系统通过学习一个在等矩形图像空间中定义的得分函数，该函数近似目标点云分布的对数梯度，并通过Langevin动态过程逐步引导初始随机噪声收敛为真实感强的LiDAR点云。这种基于物理感知建模的策略显著提升了生成样本的几何一致性和结构合理性。在实现细节上，将原始三维点云投影为双通道深度加强度的等矩形图像，并引入圆形卷积以保留视图在水平维度上的连续性，同时利用角度坐标作为额外输入引导网络捕捉激光束在不同方向上的统计偏差，从而更好地还原城市环境中复杂的空间结构。<br>
+            <b>作者：</b>黄非凡，中国科学技术大学
+        </div>
+
+        <div class="section">
+            <h2>代码简介</h2>
+
+            <h3>1、数据预处理：雷达点云转为距离图像</h3>
+            <div class="desc" style="margin-bottom:10px;">
+                原始点云数据被投影为2D距离图像，并进行对数归一化与标准化，形成单通道图像用于模型输入。系统通过对数压缩和零均值单位方差标准化来处理距离数据的动态范围问题。
+            </div>
+            <b>数据预处理实现</b>：
+            <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">LiDAR</span>(Dataset):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self, path, config):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;filename_real = os.path.join(path, <span class="str">'0_200.npy'</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;real = np.load(filename_real)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;real = np.where(real < <span class="num">0</span>, <span class="num">0</span>, real) + <span class="num">0.0001</span>  <span class="cm"># 修正负值</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;real = (np.log2(real + <span class="num">1</span>) / <span class="num">6</span>)               <span class="cm"># 对数压缩</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;real = np.clip(real, <span class="num">0</span>, <span class="num">1</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;real -= real.mean()                         <span class="cm"># 零均值</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;real /= real.std()                          <span class="cm"># 单位方差</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.data = real.reshape((<span class="num">1</span>, config.data.image_size, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;config.data.image_width))<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__getitem__</span>(self, idx):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> self.data, <span class="num">0</span><br>
+            </div>
+
+            <h3>2、扩散建模流程</h3>
+            <div class="desc" style="margin-bottom:8px;">
+                <b>前向加噪过程</b>：扩散模型中的前向过程通过高斯扰动构造噪声样本，为训练提供多尺度的噪声数据。
+            </div>
+            <div class="code-block idea-block">
+<span class="kw">def</span> <span class="fn">add_noise</span>(x, sigma):<br>
+&nbsp;&nbsp;noise = torch.randn_like(x) * sigma<br>
+&nbsp;&nbsp;x_tilde = x + noise<br>
+&nbsp;&nbsp;<span class="kw">return</span> x_tilde<br>
+<br>
+<span class="cm"># 在训练过程中的应用</span><br>
+noise = torch.randn_like(samples) * used_sigmas<br>
+perturbed_samples = samples + noise<br>
+            </div>
+
+            <h3>3、得分网络结构</h3>
+            <div class="desc" style="margin-bottom:8px;">
+                核心得分网络NCSN_LiDAR采用残差结构、多规模融合，并引入空间坐标引导机制（xy拼接）以增强点云图像的空间建模能力。网络通过多层残差块和细化模块来学习复杂的得分函数。
+            </div>
+            <div class="code-block idea-block">
+<span class="kw">class</span> <span class="cls">NCSN_LiDAR</span>(nn.Module):<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">__init__</span>(self, config):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">super</span>().__init__()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.ngf = config.model.ngf<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.begin_conv = nn.Conv2d(config.data.channels + <span class="num">2</span>, self.ngf, <span class="num">3</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;padding=<span class="num">1</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.normalizer = get_normalization(config)(self.ngf, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;config.model.num_classes)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.res1 = ResidualBlock(self.ngf, self.ngf, resample=<span class="str">"down"</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dilation=<span class="num">1</span>, normalization=norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.res2 = ResidualBlock(self.ngf, self.ngf * <span class="num">2</span>, resample=<span class="str">"down"</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dilation=<span class="num">1</span>, normalization=norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.res3 = ResidualBlock(self.ngf * <span class="num">2</span>, self.ngf * <span class="num">2</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;resample=<span class="str">"down"</span>, dilation=<span class="num">2</span>, normalization=norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.res4 = ResidualBlock(self.ngf * <span class="num">2</span>, self.ngf * <span class="num">2</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;resample=<span class="str">"none"</span>, dilation=<span class="num">4</span>, normalization=norm)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.mid_conv = nn.Conv2d(self.ngf * <span class="num">2</span>, self.ngf, <span class="num">3</span>, padding=<span class="num">1</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.refine5 = RefineBlock([self.ngf, self.ngf], self.ngf, end=<span class="kw">True</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;self.end_conv = nn.Conv2d(self.ngf, config.data.channels, <span class="num">3</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;padding=<span class="num">1</span>)<br>
+<br>
+&nbsp;&nbsp;<span class="kw">def</span> <span class="fn">forward</span>(self, x, y):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;b, _, h, w = x.shape<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 生成空间坐标网格</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;xs = torch.linspace(<span class="num">0</span>, <span class="num">1</span>, steps=w)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ys = torch.linspace(<span class="num">0</span>, <span class="num">1</span>, steps=h)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ys, xs = torch.meshgrid(ys, xs, indexing=<span class="str">'ij'</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;xy = torch.stack((xs, ys), dim=<span class="num">0</span>).view((<span class="num">1</span>, <span class="num">2</span>, h, w)).repeat(b, <span class="num">1</span>, <span class="num">1</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="num">1</span>).to(x.device)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 拼接输入和坐标信息</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;x_input = torch.cat((x, xy), dim=<span class="num">1</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.begin_conv(x_input)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.normalizer(h, y)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.res1(h, y)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.res2(h, y)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.res3(h, y)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.res4(h, y)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.mid_conv(h)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;h = self.refine5(h, y)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> self.end_conv(h)<br>
+            </div>
+
+            <h3>4、反向采样过程</h3>
+            <div class="desc" style="margin-bottom:8px;">
+                反向过程从纯噪声初始化，逐步根据得分网络输出迭代采样，通过退火的Langevin动态进行高效采样，逐层"去噪"生成真实感强的LiDAR点云。
+            </div>
+            <div class="code-block idea-block">
+<span class="kw">def</span> <span class="fn">anneal_Langevin_dynamics</span>(x_mod, scorenet, sigmas, n_steps_each=<span class="num">100</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;step_lr=<span class="num">0.00002</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;verbose=<span class="kw">True</span>, save_intermediate=<span class="kw">False</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;denoise=<span class="kw">True</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;noise_scale=<span class="num">1.</span>, device=<span class="str">'cuda'</span>):<br>
+&nbsp;&nbsp;images = []<br>
+&nbsp;&nbsp;x_mod = x_mod.to(device)<br>
+&nbsp;&nbsp;scorenet.to(device).eval()<br>
+&nbsp;&nbsp;<span class="kw">for</span> c, sigma <span class="kw">in</span> enumerate(sigmas):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;labels = torch.ones(x_mod.shape[<span class="num">0</span>], device=device).long() * c<br>
+&nbsp;&nbsp;&nbsp;&nbsp;sigma = torch.tensor(sigma).to(device).float()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">for</span> step <span class="kw">in</span> range(n_steps_each):<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x_mod.requires_grad_(<span class="kw">True</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">with</span> torch.enable_grad():<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;scores = scorenet(x_mod, labels)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;noise = torch.randn_like(x_mod) * np.sqrt(step_lr * <span class="num">2</span>) * <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;noise_scale<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x_mod = x_mod + step_lr * scores + noise<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">if</span> save_intermediate:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;images.append(x_mod.to(<span class="str">'cpu'</span>))<br>
+&nbsp;&nbsp;<span class="kw">if</span> denoise:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;last_sigma = torch.tensor(sigmas[-<span class="num">1</span>]).to(device).float()<br>
+&nbsp;&nbsp;&nbsp;&nbsp;labels = torch.ones(x_mod.shape[<span class="num">0</span>], device=device).long() * <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(len(sigmas) - <span class="num">1</span>)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">with</span> torch.no_grad():<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;scores = scorenet(x_mod, labels)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;x_mod = x_mod + (last_sigma ** <span class="num">2</span>) * scores<br>
+&nbsp;&nbsp;<span class="kw">return</span> (x_mod, images) <span class="kw">if</span> save_intermediate <span class="kw">else</span> x_mod<br>
+            </div>
+
+            <h3>5、损失函数设计：退火得分匹配</h3>
+            <div class="desc" style="margin-bottom:8px;">
+                训练过程使用多规模高斯扰动构建目标梯度，引导得分网络在各噪声层学习分布导数。该损失构建于理论得分目标和网络输出之间的最小平方距离，支持多规模训练与噪声退火机制。
+            </div>
+            <div class="code-block idea-block">
+<span class="kw">def</span> <span class="fn">anneal_dsm_score_estimation</span>(scorenet, samples, sigmas, labels=<span class="kw">None</span>, <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;anneal_power=<span class="num">2.</span>):<br>
+&nbsp;&nbsp;<span class="kw">if</span> labels <span class="kw">is</span> <span class="kw">None</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;labels = torch.randint(<span class="num">0</span>, len(sigmas), (samples.shape[<span class="num">0</span>],), <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;device=samples.device)<br>
+&nbsp;&nbsp;used_sigmas = sigmas[labels].view(samples.shape[<span class="num">0</span>], *([<span class="num">1</span>] * <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(samples.ndim - <span class="num">1</span>)))<br>
+&nbsp;&nbsp;noise = torch.randn_like(samples) * used_sigmas<br>
+&nbsp;&nbsp;perturbed_samples = samples + noise<br>
+<br>
+&nbsp;&nbsp;<span class="cm"># 计算理论得分目标</span><br>
+&nbsp;&nbsp;target = - <span class="num">1</span> / (used_sigmas ** <span class="num">2</span>) * noise<br>
+&nbsp;&nbsp;scores = scorenet(perturbed_samples, labels)<br>
+&nbsp;&nbsp;loss = <span class="num">0.5</span> * ((scores.view(scores.shape[<span class="num">0</span>], -<span class="num">1</span>) - <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target.view(target.shape[<span class="num">0</span>], -<span class="num">1</span>)) ** <span class="num">2</span>)<br>
+&nbsp;&nbsp;loss = loss.sum(dim=-<span class="num">1</span>) * used_sigmas.squeeze() ** anneal_power<br>
+&nbsp;&nbsp;<span class="kw">return</span> loss.mean()<br>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>网络结构图</h2>
+            <img src="assets/lidar_1.png" alt="扩散模型网络结构图" class="network-img">
+            <div style="text-align:center;color:#888;font-size:0.97rem;">
+                图示为基于得分匹配的扩散模型架构，包含前向加噪与反向去噪的完整流程。
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>部署方式</h2>
+            <div class="deploy-steps">
+                <div>1、创建环境：</div>
+                <div class="code-block">conda env create -f environment.yml</div>
+                <div>2、设置路径：</div>
+                <div class="code-block">export KITTI360_DATASET=/path/to/dataset/KITTI-360/</div>
+                <div>3、根据预训练模型无条件生成雷达数据：</div>
+                <div class="code-block">python gen.py --sample --exp kitti_pretrained --config kitti.yml</div>
+                <div>4、转化为ply文件：</div>
+                <div class="code-block">python gen2ply.py</div>
+                <div>5、使用meshlab可视化结果</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>实现效果</h2>
+            <div id="effect-demo" style="text-align:center;">
+                <div class="effect-img-group">
+                    <div class="effect-pair">
+                        <div class="effect-label">无条件生成2D距离图像</div>
+                        <img src="assets/lidar_2.png" class="effect-img" alt="2D距离图像生成效果">
+                    </div>
+                    <div class="effect-pair">
+                        <div class="effect-label">meshlab可视化结果</div>
+                        <img src="assets/lidar_3.png" class="effect-img" alt="Meshlab可视化结果">
+                    </div>
+                </div>
+            </div>
+            <div style="color:#888;font-size:0.97rem;text-align:center;">
+                系统能够生成高质量的LiDAR点云数据，在KITTI-360与nuScenes数据集上实现了优异的生成质量与物理可行性。
+            </div>
+        </div>
+
+        <div class="footer">
+            &copy; 2024 黄非凡 | 中国科学技术大学 | <a href="mailto:actual.email@example.com" style="color:#1769aa;text-decoration:none;">联系邮箱</a>
+            <br><br>
+            <a href="trial.html" style="display:inline-block;padding:12px 32px;margin-top:18px;background:#1769aa;color:#fff;border-radius:8px;font-size:1.13rem;text-decoration:none;box-shadow:0 2px 8px rgba(23,105,170,0.10);transition:background 0.2s;">算法试用</a>
+        </div>
+    </div>
+</body>
+</html>
