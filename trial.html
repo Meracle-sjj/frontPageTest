@@ -85,7 +85,7 @@
             const inferResult = document.getElementById('infer-result');
             inferResult.innerHTML = '';
             result.innerHTML = '正在清除缓存...';
-            fetch('http://js2.blockelite.cn:11382/clear_cache', { method: 'POST' })
+            fetch('/clear_cache', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.message) {
@@ -109,7 +109,7 @@
 
         // 页面加载时检测上传状态
         window.onload = function() {
-            fetch('http://js2.blockelite.cn:11382/upload_status')
+            fetch('/upload_status')
                 .then(res => res.json())
                 .then(data => {
                     if (data.has_image) {
@@ -165,7 +165,7 @@
             selectedFiles.forEach((file, index) => {
                 const formData = new FormData();
                 formData.append('image', file);
-                fetch('http://js2.blockelite.cn:11382/upload', {
+                fetch('/upload', {
                     method: 'POST',
                     body: formData
                 })
@@ -209,7 +209,7 @@
         document.getElementById('run-infer-btn').onclick = function() {
             const inferResult = document.getElementById('infer-result');
             inferResult.innerHTML = '正在执行服务器推理脚本...';
-            fetch('http://js2.blockelite.cn:11382/run_inference', { method: 'POST' })
+            fetch('/run_inference', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     let html = '';
