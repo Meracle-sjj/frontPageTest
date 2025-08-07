@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频播放测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+        }
+        .video-container { 
+            margin: 20px 0; 
+            border: 2px solid #ddd; 
+            padding: 10px; 
+            border-radius: 8px; 
+        }
+        video { 
+            width: 100%; 
+            max-width: 400px; 
+            height: auto; 
+        }
+        .status { 
+            margin: 10px 0; 
+            padding: 8px; 
+            border-radius: 4px; 
+            font-size: 14px; 
+        }
+        .success { background: #d4edda; color: #155724; }
+        .warning { background: #fff3cd; color: #856404; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #0056b3; }
+        #console { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            padding: 10px; 
+            height: 200px; 
+            overflow-y: scroll; 
+            font-family: monospace; 
+            font-size: 12px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>视频播放测试页面</h1>
+        
+        <button onclick="testVideoFiles()">测试视频文件状态</button>
+        <button onclick="clearConsole()">清空控制台</button>
+        
+        <div id="console"></div>
+        
+        <div id="video-results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            console.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+
+        function testVideoFiles() {
+            log('开始测试视频文件...', 'info');
+            
+            fetch('/test_video_files')
+                .then(response => {
+                    log(`HTTP响应状态: ${response.status}`, response.ok ? 'success' : 'error');
+                    return response.json();
+                })
+                .then(data => {
+                    log(`服务器响应: ${JSON.stringify(data, null, 2)}`, 'info');
+                    
+                    if (data.error) {
+                        log(`错误: ${data.error}`, 'error');
+                        return;
+                    }
+                    
+                    const resultsDiv = document.getElementById('video-results');
+                    resultsDiv.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        log(`找到 ${data.files.length} 个视频文件`, 'success');
+                        
+                        data.files.forEach((video, index) => {
+                            log(`视频 ${index + 1}: ${video.filename} (${video.type}, ${(video.size / 1024 / 1024).toFixed(2)}MB)`, 'info');
+                            
+                            const videoContainer = document.createElement('div');
+                            videoContainer.className = 'video-container';
+                            
+                            videoContainer.innerHTML = `
+                                <h3>${video.filename}</h3>
+                                <div class="status info">
+                                    类型: ${video.type} | 
+                                    大小: ${(video.size / 1024 / 1024).toFixed(2)}MB |
+                                    URL: ${video.url}
+                                </div>
+                                <video 
+                                    id="video-${index}"
+                                    controls 
+                                    muted 
+                                    preload="metadata"
+                                    crossorigin="anonymous"
+                                    onloadstart="videoEvent('${video.filename}', 'loadstart')"
+                                    onloadedmetadata="videoEvent('${video.filename}', 'loadedmetadata')"
+                                    onloadeddata="videoEvent('${video.filename}', 'loadeddata')"
+                                    oncanplay="videoEvent('${video.filename}', 'canplay')"
+                                    oncanplaythrough="videoEvent('${video.filename}', 'canplaythrough')"
+                                    onerror="videoEvent('${video.filename}', 'error', this.error)"
+                                    onplay="videoEvent('${video.filename}', 'play')"
+                                    onpause="videoEvent('${video.filename}', 'pause')"
+                                >
+                                    <source src="${video.url}?t=${Date.now()}" type="video/mp4">
+                                    您的浏览器不支持视频播放
+                                </video>
+                                <div class="status" id="status-${index}">准备加载...</div>
+                            `;
+                            
+                            resultsDiv.appendChild(videoContainer);
+                            
+                            // 立即尝试加载视频
+                            setTimeout(() => {
+                                const videoElement = document.getElementById(`video-${index}`);
+                                videoElement.src = `${video.url}?t=${Date.now()}`;
+                                videoElement.load();
+                            }, 100);
+                        });
+                    } else {
+                        log('没有找到视频文件', 'warning');
+                    }
+                })
+                .catch(error => {
+                    log(`请求失败: ${error}`, 'error');
+                });
+        }
+
+        function videoEvent(filename, event, error = null) {
+            let message = `${filename}: ${event}`;
+            let type = 'info';
+            
+            if (event === 'error') {
+                message += ` - ${error ? error.message || error.code || '未知错误' : '未知错误'}`;
+                type = 'error';
+            } else if (event === 'canplay' || event === 'canplaythrough') {
+                type = 'success';
+            } else if (event === 'loadstart') {
+                type = 'warning';
+            }
+            
+            log(message, type);
+        }
+
+        // 页面加载完成后自动测试
+        window.onload = function() {
+            log('页面加载完成，开始自动测试...', 'info');
+            testVideoFiles();
+        };
+    </script>
+</body>
+</html>

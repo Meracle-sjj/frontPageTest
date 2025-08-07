@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, redirect
+from flask import Flask, request, jsonify, send_from_directory, redirect, send_file, Response
 from flask_cors import CORS
 import uuid
 import subprocess
@@ -7,8 +7,15 @@ import json
 from datetime import datetime
 import glob
 import base64
+import io
+import zipfile
+import mimetypes
+import re
+
 
 app = Flask(__name__)
+# 设置最大上传文件大小为 1GB
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024  # 1GB
 CORS(app)
 
 # 存储不同模块的上传图片信息
@@ -44,10 +51,10 @@ MODULE_CONFIG = {
     },
     'video': {
         'name': '视频数据合成模块',
-        'input_dir': '/home/vipuser/Downloads/VideoSynthesis/input',
-        'output_dir': '/home/vipuser/Downloads/VideoSynthesis/output',
-        'script_path': '/home/vipuser/Downloads/VideoSynthesis/run_inference.sh',
-        'supported_formats': ['.mp4', '.avi', '.mov', '.mkv']
+        'input_dir': '/home/vipuser/Downloads/MAP-Net/input',
+        'output_dir': '/home/vipuser/Downloads/MAP-Net/result',
+        'script_path': '/home/vipuser/Downloads/MAP-Net/run_mapnet.sh',
+        'supported_formats': ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
     }
 }
 
@@ -68,6 +75,22 @@ def static_files(filename):
         return send_from_directory('.', filename)
     else:
         return "File not found", 404
+
+@app.route('/result/videos/<filename>')
+def serve_video_results(filename):
+    """提供视频结果文件服务"""
+    video_output_dir = '/home/vipuser/Downloads/MAP-Net/result/videos'
+    # 也检查主结果目录
+    main_output_dir = '/home/vipuser/Downloads/MAP-Net/result'
+    
+    # 首先检查 videos 子目录
+    if os.path.exists(os.path.join(video_output_dir, filename)):
+        return send_from_directory(video_output_dir, filename)
+    # 然后检查主目录
+    elif os.path.exists(os.path.join(main_output_dir, filename)):
+        return send_from_directory(main_output_dir, filename)
+    else:
+        return "Video file not found", 404
 
 @app.route('/api/')
 def api_info():
@@ -118,9 +141,10 @@ def platform_status():
             'video_synthesis': {
                 'name': '视频数据合成模块',
                 'responsible': '杨涵青', 
-                'status': 'working',
+                'status': 'active',
                 'intro_page': 'video_index.html',
-                'trial_available': False
+                'trial_page': 'image_trial.html',
+                'trial_available': True
             },
             'infrared_synthesis': {
                 'name': '红外数据合成模块',
@@ -269,31 +293,35 @@ def run_module_inference(module_name):
         result_files = []
         print(f"检查输出目录: {output_dir}")
         
+        # 扫描输出目录中的文件
         if os.path.exists(output_dir):
-            all_files = os.listdir(output_dir)
-            print(f"输出目录中的所有文件: {all_files}")
-            
-            output_files = glob.glob(os.path.join(output_dir, "*"))
-            print(f"Glob匹配到的文件: {output_files}")
-            
-            for output_file in output_files:
-                print(f"检查文件: {output_file}")
-                if os.path.isfile(output_file):
-                    try:
-                        print(f"读取文件: {output_file}")
-                        with open(output_file, 'rb') as file:
-                            file_data = base64.b64encode(file.read()).decode('utf-8')
+            for file_path in glob.glob(os.path.join(output_dir, "**/*"), recursive=True):
+                if os.path.isfile(file_path):
+                    relative_path = os.path.relpath(file_path, output_dir)
+                    filename = os.path.basename(file_path)
+                    file_size = os.path.getsize(file_path)
+                    
+                    # 对于视频模块，检查是否为视频文件
+                    if module_name == 'video':
+                        # 检查文件扩展名
+                        _, ext = os.path.splitext(filename.lower())
+                        if ext in ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']:
                             result_files.append({
-                                'filename': os.path.basename(output_file),
-                                'data': file_data
+                                'filename': filename,
+                                'relative_path': relative_path,
+                                'full_path': file_path,
+                                'size': file_size
                             })
-                            print(f"成功读取文件: {os.path.basename(output_file)}")
-                    except Exception as e:
-                        print(f"读取结果文件失败: {e}")
-        else:
-            print(f"输出目录不存在: {output_dir}")
-        
-        print(f"找到 {len(result_files)} 个结果文件")
+                    else:
+                        # 对于其他模块，添加所有文件
+                        result_files.append({
+                            'filename': filename,
+                            'relative_path': relative_path,
+                            'full_path': file_path,
+                            'size': file_size
+                        })
+            
+            print(f"找到 {len(result_files)} 个结果文件: {[f['filename'] for f in result_files]}")
         
         # 获取所有原始文件的名称
         original_files = [file['original_name'] for file in uploaded_data[module_name]['images']]
@@ -359,30 +387,168 @@ def clear_cache(module_name='infrared'):
     
     config = MODULE_CONFIG[module_name]
     
+    import shutil
     try:
         # 清除内存中的文件信息
         uploaded_data[module_name]['images'].clear()
-        
-        # 清空input目录
+
+        # 递归清空 input 目录
         input_dir = config['input_dir']
         if os.path.exists(input_dir):
-            for existing_file in glob.glob(os.path.join(input_dir, "*")):
-                if os.path.isfile(existing_file):
-                    os.remove(existing_file)
-        
-        # 清空output目录
+            for item in os.listdir(input_dir):
+                item_path = os.path.join(input_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+
+        # 递归清空 output 目录
         output_dir = config['output_dir']
         if os.path.exists(output_dir):
-            for existing_file in glob.glob(os.path.join(output_dir, "*")):
-                if os.path.isfile(existing_file):
-                    os.remove(existing_file)
-        
+            for item in os.listdir(output_dir):
+                item_path = os.path.join(output_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+
         return jsonify({
             'message': f'{config["name"]}缓存已清除，所有上传和输出文件已删除',
             'module': module_name
         })
     except Exception as e:
         return jsonify({'error': f'清除{config["name"]}缓存失败: {str(e)}'}), 500
+from flask import send_file
+import io
+import zipfile
+
+# 批量打包下载 output/result 目录下所有内容
+@app.route('/download_all_result/<module_name>', methods=['GET'])
+def download_all_result(module_name):
+    """打包下载指定模块的 output/result 目录所有内容（zip）"""
+    if module_name not in MODULE_CONFIG:
+        return jsonify({'error': f'不支持的模块: {module_name}'}), 400
+    config = MODULE_CONFIG[module_name]
+    output_dir = config['output_dir']
+    if not os.path.exists(output_dir):
+        return jsonify({'error': '结果目录不存在'}), 404
+    
+    # 添加调试信息
+    print(f"正在打包目录: {output_dir}")
+    
+    # 检查目录中的文件
+    all_files = []
+    for root, dirs, files in os.walk(output_dir):
+        for file in files:
+            abs_path = os.path.join(root, file)
+            if os.path.isfile(abs_path) and os.path.getsize(abs_path) > 0:
+                all_files.append(abs_path)
+                print(f"找到文件: {abs_path} (大小: {os.path.getsize(abs_path)} bytes)")
+    
+    if not all_files:
+        return jsonify({'error': '结果目录中没有文件'}), 404
+    
+    # 创建一个新的BytesIO对象，避免缓存问题
+    mem_zip = io.BytesIO()
+    
+    try:
+        with zipfile.ZipFile(mem_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as zf:
+            for abs_path in all_files:
+                rel_path = os.path.relpath(abs_path, output_dir)
+                try:
+                    # 确保文件真的存在并且可读
+                    with open(abs_path, 'rb') as f:
+                        file_data = f.read()
+                    zf.writestr(rel_path, file_data)
+                    print(f"已添加到zip: {rel_path} (数据大小: {len(file_data)} bytes)")
+                except Exception as e:
+                    print(f"添加文件失败: {abs_path}, 错误: {e}")
+        
+        mem_zip.seek(0)
+        zip_size = len(mem_zip.getvalue())
+        print(f"生成的zip文件大小: {zip_size} bytes")
+        
+        if zip_size < 1000:  # 如果zip文件太小，可能有问题
+            print(f"警告：生成的zip文件异常小: {zip_size} bytes")
+        
+        # 使用时间戳避免缓存
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f"{module_name}_results_{timestamp}.zip"
+        
+        return send_file(
+            mem_zip, 
+            mimetype='application/zip', 
+            as_attachment=True, 
+            attachment_filename=zip_filename,
+            cache_timeout=0  # 禁用缓存
+        )
+    except Exception as e:
+        print(f"创建zip文件时发生错误: {e}")
+        return jsonify({'error': f'打包失败: {str(e)}'}), 500
+
+# 下载推荐数据集
+@app.route('/download_dataset/video', methods=['GET'])
+def download_video_dataset():
+    """下载视频模块的推荐数据集"""
+    dataset_dir = '/home/vipuser/Downloads/MAP-Net/dataset/video'
+    
+    if not os.path.exists(dataset_dir):
+        return jsonify({'error': '数据集目录不存在'}), 404
+    
+    # 添加调试信息
+    print(f"正在打包数据集目录: {dataset_dir}")
+    
+    # 检查目录中的文件
+    all_files = []
+    for root, dirs, files in os.walk(dataset_dir):
+        for file in files:
+            abs_path = os.path.join(root, file)
+            if os.path.isfile(abs_path) and os.path.getsize(abs_path) > 0:
+                all_files.append(abs_path)
+                print(f"找到数据集文件: {abs_path} (大小: {os.path.getsize(abs_path)} bytes)")
+    
+    if not all_files:
+        return jsonify({'error': '数据集目录中没有文件'}), 404
+    
+    # 创建一个新的BytesIO对象，避免缓存问题
+    mem_zip = io.BytesIO()
+    
+    try:
+        with zipfile.ZipFile(mem_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as zf:
+            for abs_path in all_files:
+                rel_path = os.path.relpath(abs_path, dataset_dir)
+                try:
+                    # 确保文件真的存在并且可读
+                    with open(abs_path, 'rb') as f:
+                        file_data = f.read()
+                    zf.writestr(rel_path, file_data)
+                    print(f"已添加数据集到zip: {rel_path} (数据大小: {len(file_data)} bytes)")
+                except Exception as e:
+                    print(f"添加数据集文件失败: {abs_path}, 错误: {e}")
+        
+        mem_zip.seek(0)
+        zip_size = len(mem_zip.getvalue())
+        print(f"生成的数据集zip文件大小: {zip_size} bytes")
+        
+        if zip_size < 1000:  # 如果zip文件太小，可能有问题
+            print(f"警告：生成的数据集zip文件异常小: {zip_size} bytes")
+        
+        # 使用时间戳避免缓存
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f"video_dataset_{timestamp}.zip"
+        
+        return send_file(
+            mem_zip, 
+            mimetype='application/zip', 
+            as_attachment=True, 
+            attachment_filename=zip_filename,
+            cache_timeout=0  # 禁用缓存
+        )
+    except Exception as e:
+        print(f"创建数据集zip文件时发生错误: {e}")
+        return jsonify({'error': f'数据集打包失败: {str(e)}'}), 500
 
 @app.route('/clear_cuda', methods=['POST'])
 def clear_cuda():

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>算法试用 | 高真实感红外数据生成</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- JSZip库用于打包下载多张图片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -74,6 +76,7 @@
         <div class="result-area" id="result-area">请选择一张或多张图片，然后点击上传按钮。</div>
         <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">清除缓存</button>
         <button id="run-infer-btn" class="upload-btn" style="background:#ff9800;margin-bottom:18px;">执行推理脚本</button>
+        <button id="download-results-btn" class="upload-btn" style="background:#4caf50;margin-bottom:18px;display:none;">保存输出图片到本地</button>
         <div id="infer-result" class="result-area"></div>
         <div style="text-align:center;color:#888;font-size:1.02rem;margin-top:38px;">
             前后端技术支持：施钧舰
@@ -85,6 +88,10 @@
             const inferResult = document.getElementById('infer-result');
             inferResult.innerHTML = '';
             result.innerHTML = '正在清除缓存...';
+            // 隐藏下载按钮并清空结果数据
+            downloadBtn.style.display = 'none';
+            currentResultImages = [];
+            
             fetch('/clear_cache', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
@@ -94,7 +101,7 @@
                         result.innerHTML = `<div style="color:red;">${data.error || '清除缓存失败'}</div>`;
                     }
                     // 清空本地状态
-                    selectedFile = null;
+                    selectedFiles = [];
                     uploadBtn.disabled = true;
                     uploadBtn.style.background = '#ccc';
                 })
@@ -105,7 +112,9 @@
         const upload = document.getElementById('img-upload');
         const uploadBtn = document.getElementById('upload-btn');
         const result = document.getElementById('result-area');
+        const downloadBtn = document.getElementById('download-results-btn');
         let selectedFiles = [];
+        let currentResultImages = []; // 存储当前推理结果的图片数据
 
         // 页面加载时检测上传状态
         window.onload = function() {
@@ -209,6 +218,10 @@
         document.getElementById('run-infer-btn').onclick = function() {
             const inferResult = document.getElementById('infer-result');
             inferResult.innerHTML = '正在执行服务器推理脚本...';
+            // 隐藏下载按钮
+            downloadBtn.style.display = 'none';
+            currentResultImages = [];
+            
             fetch('/run_inference', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
@@ -217,10 +230,16 @@
                         html += `<div style=\"color:#1769aa;\">输出结果：<pre style=\"white-space:pre-wrap;\">${data.output}</pre></div>`;
                     }
                     if (data.result_images && data.result_images.length > 0) {
+                        // 存储结果图片数据
+                        currentResultImages = data.result_images;
+                        
                         html += '<div style=\"margin-top:10px;\">推理结果图片：</div>';
                         data.result_images.forEach(img => {
                             html += `<img src=\"data:image/png;base64,${img.data}\" class=\"preview-img\" style=\"max-width:220px;margin:8px;\">`;
                         });
+                        
+                        // 显示下载按钮
+                        downloadBtn.style.display = 'block';
                     }
                     // 不显示错误信息
                     inferResult.innerHTML = html;
@@ -228,8 +247,92 @@
                 .catch(err => {
                     // 不显示前端请求失败信息
                     inferResult.innerHTML = '';
+                    downloadBtn.style.display = 'none';
+                    currentResultImages = [];
                 });
         };
+
+        // 下载结果图片按钮事件
+        document.getElementById('download-results-btn').onclick = function() {
+            if (currentResultImages.length === 0) {
+                alert('没有可下载的图片');
+                return;
+            }
+            
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = '正在准备下载...';
+            
+            try {
+                if (currentResultImages.length === 1) {
+                    // 单张图片直接下载
+                    const img = currentResultImages[0];
+                    downloadSingleImage(img.data, img.filename || 'infrared_result.png');
+                } else {
+                    // 多张图片打包下载
+                    downloadMultipleImages(currentResultImages);
+                }
+            } catch (error) {
+                console.error('下载失败:', error);
+                alert('下载失败，请重试');
+            } finally {
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '保存输出图片到本地';
+            }
+        };
+
+        // 下载单张图片
+        function downloadSingleImage(base64Data, filename) {
+            const link = document.createElement('a');
+            link.href = 'data:image/png;base64,' + base64Data;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 下载多张图片（需要JSZip库）
+        function downloadMultipleImages(images) {
+            // 如果浏览器支持，使用现代方法
+            if (typeof JSZip !== 'undefined') {
+                downloadWithJSZip(images);
+            } else {
+                // 降级方案：逐个下载
+                downloadImagesSequentially(images);
+            }
+        }
+
+        // 使用JSZip打包下载（如果可用）
+        function downloadWithJSZip(images) {
+            const zip = new JSZip();
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            
+            images.forEach((img, index) => {
+                const filename = img.filename || `infrared_result_${index + 1}.png`;
+                zip.file(filename, img.data, {base64: true});
+            });
+            
+            zip.generateAsync({type: 'blob'}).then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `infrared_results_${timestamp}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            });
+        }
+
+        // 降级方案：逐个下载图片
+        function downloadImagesSequentially(images) {
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            
+            images.forEach((img, index) => {
+                setTimeout(() => {
+                    const filename = img.filename || `infrared_result_${timestamp}_${index + 1}.png`;
+                    downloadSingleImage(img.data, filename);
+                }, index * 500); // 每500ms下载一张，避免浏览器阻止
+            });
+        }
     </script>
 </body>
 </html>
