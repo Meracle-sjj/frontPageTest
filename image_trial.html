@@ -196,25 +196,20 @@
             });
             if (selectedFiles.length > 0) {
                 let previewHtml = `<div style=\"margin-bottom:15px;\">已选择 ${selectedFiles.length} 个视频文件：</div>`;
-                let loadedCount = 0;
-                let videoHtmlArr = new Array(selectedFiles.length);
+                let cardsHtml = '';
                 selectedFiles.forEach((file, index) => {
-                    // 为视频文件创建预览
-                    const videoUrl = URL.createObjectURL(file);
-                    videoHtmlArr[index] = `
-                        <div style="margin:8px;display:inline-block;text-align:center;">
-                            <video src="${videoUrl}" class="preview-video" style="max-width:150px;max-height:100px;" controls muted>
-                                您的浏览器不支持视频播放
-                            </video>
-                            <div style="font-size:0.9rem;color:#666;margin-top:4px;">${file.name}</div>
-                            <div style="font-size:0.8rem;color:#999;">${(file.size / (1024*1024)).toFixed(1)} MB</div>
+                    // 获取文件扩展名
+                    const fileExtension = file.name.split('.').pop().toUpperCase();
+                    cardsHtml += `
+                        <div style="margin:8px;display:inline-block;text-align:center;border:1px solid #ddd;border-radius:8px;padding:12px;min-width:120px;background:#f9f9f9;">
+                            <div style="font-size:2rem;color:#1769aa;margin-bottom:8px;">📹</div>
+                            <div style="font-size:0.9rem;color:#333;margin-bottom:4px;word-break:break-word;max-width:150px;">${file.name}</div>
+                            <div style="font-size:0.8rem;color:#666;background:#e3eef7;padding:2px 6px;border-radius:4px;display:inline-block;">${fileExtension}</div>
+                            <div style="font-size:0.8rem;color:#999;margin-top:4px;">${(file.size / (1024*1024)).toFixed(1)} MB</div>
                         </div>
                     `;
-                    loadedCount++;
-                    if (loadedCount === selectedFiles.length) {
-                        result.innerHTML = previewHtml + videoHtmlArr.join('');
-                    }
                 });
+                result.innerHTML = previewHtml + cardsHtml;
                 uploadBtn.disabled = false;
                 uploadBtn.style.background = '#28a745';
             } else {
@@ -258,12 +253,6 @@
                         uploadBtn.disabled = false;
                         uploadBtn.style.background = '#28a745';
                         selectedFiles = [];
-                        // 清理临时URL
-                        document.querySelectorAll('video').forEach(video => {
-                            if (video.src.startsWith('blob:')) {
-                                URL.revokeObjectURL(video.src);
-                            }
-                        });
                     }
                 })
                 .catch(err => {
@@ -304,21 +293,44 @@
                         // 存储结果视频数据
                         currentResultVideos = data.result_files;
                         
-                        html += '<div style=\"margin-top:10px;\">处理完成的视频：</div>';
-                        data.result_files.forEach(video => {
+                        // 创建左右对比的视频展示
+                        html += '<div style=\"margin-top:20px;\"><h3 style=\"color:#333;text-align:center;\">视频处理对比结果</h3></div>';
+                        
+                        // 为每个输出视频创建对比界面
+                        data.result_files.forEach((outputVideo, index) => {
                             html += `
-                                <div style="margin:8px;display:inline-block;text-align:center;">
-                                    <video src="/result/videos/${video.filename}" class="preview-video" style="max-width:150px;max-height:100px;" controls muted>
-                                        您的浏览器不支持视频播放
-                                    </video>
-                                    <div style="font-size:0.9rem;color:#333;">${video.filename}</div>
-                                    <div style="font-size:0.8rem;color:#999;">视频文件</div>
+                                <div style="margin:20px 0;border:1px solid #ddd;border-radius:12px;padding:20px;background:#f9f9f9;">
+                                    <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+                                        <div style="flex:1;min-width:300px;max-width:45%;">
+                                            <h4 style="color:#1769aa;text-align:center;margin-bottom:15px;">📥 输入视频 (Input)</h4>
+                                            <div style="text-align:center;border:2px solid #1769aa;border-radius:8px;padding:15px;background:#fff;">
+                                                <div id="input-container-${index}" style="min-height:200px;">
+                                                    <div style="color:#666;padding:80px 20px;">正在加载输入视频...</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style="flex:1;min-width:300px;max-width:45%;">
+                                            <h4 style="color:#28a745;text-align:center;margin-bottom:15px;">📤 输出视频 (Output)</h4>
+                                            <div style="text-align:center;border:2px solid #28a745;border-radius:8px;padding:15px;background:#fff;">
+                                                <div id="output-container-${index}" style="min-height:200px;">
+                                                    <div style="color:#666;padding:80px 20px;">正在加载输出视频...</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             `;
                         });
+                        
                         // 显示下载按钮
                         downloadBtn.style.display = 'block';
                         downloadAllBtn.style.display = 'block';
+                        
+                        // 加载输入和输出视频（使用转换后的格式）
+                        setTimeout(() => {
+                            loadInputVideosForComparison(data.result_files);
+                            loadOutputVideosForComparison(data.result_files);
+                        }, 100);
                     }
                     // 显示处理消息
                     if (data.message) {
@@ -439,6 +451,179 @@
                     const filename = video.filename;
                     downloadVideoFile(filename);
                 }, index * 500); // 每0.5秒下载一个，避免浏览器阻止
+            });
+        }
+
+        // 加载输入视频用于对比显示（使用转换后的格式）
+        function loadInputVideosForComparison(outputVideos) {
+            // 首先获取所有输入视频列表
+            fetch('/list_input_videos')
+                .then(res => res.json())
+                .then(inputData => {
+                    if (inputData.error) {
+                        console.error('获取输入视频列表失败:', inputData.error);
+                        outputVideos.forEach((outputVideo, index) => {
+                            const container = document.getElementById(`input-container-${index}`);
+                            if (container) {
+                                container.innerHTML = `
+                                    <div style="color:#dc3545;padding:80px 20px;">
+                                        <div>获取输入视频列表失败</div>
+                                        <div style="font-size:0.8rem;margin-top:5px;">${inputData.error}</div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        return;
+                    }
+                    
+                    const inputVideos = inputData.videos || [];
+                    
+                    // 为每个输出视频匹配对应的输入视频
+                    outputVideos.forEach((outputVideo, index) => {
+                        const container = document.getElementById(`input-container-${index}`);
+                        if (!container) return;
+                        
+                        // 显示加载状态
+                        container.innerHTML = `
+                            <div style="color:#1769aa;padding:80px 20px;">
+                                <div style="font-size:1.2rem;margin-bottom:10px;">🔄</div>
+                                <div>正在转换视频格式...</div>
+                            </div>
+                        `;
+                        
+                        // 尝试通过文件名匹配找到对应的输入视频
+                        const baseName = outputVideo.filename.replace(/(_processed|_result|_output)?\.(mp4|avi|mov|mkv)$/i, '');
+                        
+                        // 寻找最匹配的输入视频
+                        let matchedInput = inputVideos.find(input => {
+                            const inputBaseName = input.filename.replace(/\.(mp4|avi|mov|mkv)$/i, '');
+                            return inputBaseName === baseName || input.filename.includes(baseName) || baseName.includes(inputBaseName);
+                        });
+                        
+                        // 如果没有找到匹配的，使用第一个输入视频
+                        if (!matchedInput && inputVideos.length > 0) {
+                            matchedInput = inputVideos[0];
+                        }
+                        
+                        if (matchedInput) {
+                            // 使用转换API来获取兼容格式的视频
+                            fetch(`/convert_video/${matchedInput.filename}`)
+                                .then(response => {
+                                    if (!response.ok) {
+                                        throw new Error(`转换失败: ${response.status}`);
+                                    }
+                                    return response.blob();
+                                })
+                                .then(blob => {
+                                    // 创建blob URL
+                                    const videoUrl = URL.createObjectURL(blob);
+                                    
+                                    container.innerHTML = `
+                                        <video src="${videoUrl}" style="max-width:100%;max-height:300px;border-radius:8px;" controls muted>
+                                            您的浏览器不支持视频播放
+                                        </video>
+                                        <div style="font-size:0.9rem;color:#333;margin-top:8px;">${matchedInput.filename}</div>
+                                        <div style="font-size:0.8rem;color:#999;">原始视频 (${matchedInput.size_mb} MB) - 已转换</div>
+                                    `;
+                                })
+                                .catch(err => {
+                                    console.error('转换输入视频失败:', err);
+                                    container.innerHTML = `
+                                        <div style="color:#dc3545;padding:80px 20px;">
+                                            <div style="font-size:2rem;margin-bottom:10px;">⚠️</div>
+                                            <div>视频转换失败</div>
+                                            <div style="font-size:0.8rem;margin-top:5px;">${err.message}</div>
+                                            <div style="font-size:0.8rem;margin-top:10px;">
+                                                原文件: ${matchedInput.filename}
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                        } else {
+                            container.innerHTML = `
+                                <div style="color:#999;padding:80px 20px;">
+                                    <div style="font-size:3rem;margin-bottom:10px;">📹</div>
+                                    <div>未找到对应的输入视频</div>
+                                </div>
+                            `;
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error('加载输入视频失败:', err);
+                    // 显示错误信息
+                    outputVideos.forEach((outputVideo, index) => {
+                        const container = document.getElementById(`input-container-${index}`);
+                        if (container) {
+                            container.innerHTML = `
+                                <div style="color:#dc3545;padding:80px 20px;">
+                                    <div>加载输入视频失败</div>
+                                    <div style="font-size:0.8rem;margin-top:5px;">${err}</div>
+                                </div>
+                            `;
+                        }
+                    });
+                });
+        }
+
+        // 加载输出视频用于对比显示（使用转换后的格式）
+        function loadOutputVideosForComparison(outputVideos) {
+            outputVideos.forEach((outputVideo, index) => {
+                const container = document.getElementById(`output-container-${index}`);
+                if (!container) return;
+                
+                // 显示加载状态
+                container.innerHTML = `
+                    <div style="color:#28a745;padding:80px 20px;">
+                        <div style="font-size:1.2rem;margin-bottom:10px;">🔄</div>
+                        <div>正在转换输出视频格式...</div>
+                    </div>
+                `;
+                
+                // 使用转换API来获取兼容格式的输出视频
+                fetch(`/convert_output_video/${outputVideo.filename}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`转换失败: ${response.status}`);
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        // 创建blob URL
+                        const videoUrl = URL.createObjectURL(blob);
+                        
+                        container.innerHTML = `
+                            <video src="${videoUrl}" style="max-width:100%;max-height:300px;border-radius:8px;" controls muted>
+                                您的浏览器不支持视频播放
+                            </video>
+                            <div style="font-size:0.9rem;color:#333;margin-top:8px;">${outputVideo.filename}</div>
+                            <div style="font-size:0.8rem;color:#999;">处理后的视频 - 已转换</div>
+                        `;
+                    })
+                    .catch(err => {
+                        console.error('转换输出视频失败:', err);
+                        container.innerHTML = `
+                            <div style="color:#dc3545;padding:80px 20px;">
+                                <div style="font-size:2rem;margin-bottom:10px;">⚠️</div>
+                                <div>输出视频转换失败</div>
+                                <div style="font-size:0.8rem;margin-top:5px;">${err.message}</div>
+                                <div style="font-size:0.8rem;margin-top:10px;">
+                                    尝试直接播放原文件...
+                                </div>
+                            </div>
+                        `;
+                        
+                        // 如果转换失败，尝试直接播放原文件
+                        setTimeout(() => {
+                            container.innerHTML = `
+                                <video src="/result/videos/${outputVideo.filename}" style="max-width:100%;max-height:300px;border-radius:8px;" controls muted>
+                                    您的浏览器不支持视频播放
+                                </video>
+                                <div style="font-size:0.9rem;color:#333;margin-top:8px;">${outputVideo.filename}</div>
+                                <div style="font-size:0.8rem;color:#999;">处理后的视频 (原格式)</div>
+                            `;
+                        }, 2000);
+                    });
             });
         }
     </script>

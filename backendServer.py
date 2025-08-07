@@ -569,5 +569,186 @@ def clear_cuda():
     except Exception as e:
         return jsonify({'error': f'清理CUDA显存失败: {str(e)}'}), 500
 
+@app.route('/convert_video/<filename>')
+def convert_video(filename):
+    """将视频转换为网页兼容的H.264格式"""
+    try:
+        input_path = os.path.join('/home/vipuser/Downloads/MAP-Net/input', filename)
+        # 创建转换后的文件存储目录
+        converted_dir = '/home/vipuser/Downloads/MAP-Net/converted'
+        os.makedirs(converted_dir, exist_ok=True)
+        
+        # 生成转换后的文件名
+        base_name = os.path.splitext(filename)[0]
+        converted_filename = f"{base_name}_converted.mp4"
+        output_path = os.path.join(converted_dir, converted_filename)
+        
+        # 检查原文件是否存在
+        if not os.path.exists(input_path):
+            return jsonify({'error': '原视频文件不存在'}), 404
+            
+        # 检查是否已经转换过
+        if os.path.exists(output_path):
+            return send_from_directory(converted_dir, converted_filename)
+        
+        # 使用ffmpeg转换视频为网页兼容格式
+        cmd = [
+            'ffmpeg', '-i', input_path,
+            '-c:v', 'libx264',  # 使用H.264编码
+            '-c:a', 'aac',      # 使用AAC音频编码
+            '-movflags', '+faststart',  # 优化网页播放
+            '-preset', 'medium',  # 平衡质量和速度
+            '-crf', '23',       # 质量设置
+            '-y',               # 覆盖输出文件
+            output_path
+        ]
+        
+        print(f"开始转换视频: {input_path} -> {output_path}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5分钟超时
+        
+        if result.returncode == 0:
+            print(f"视频转换成功: {converted_filename}")
+            return send_from_directory(converted_dir, converted_filename)
+        else:
+            print(f"视频转换失败: {result.stderr}")
+            return jsonify({'error': f'视频转换失败: {result.stderr}'}), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': '视频转换超时'}), 500
+    except Exception as e:
+        print(f"视频转换异常: {str(e)}")
+        return jsonify({'error': f'视频转换异常: {str(e)}'}), 500
+
+@app.route('/list_input_videos')
+def list_input_videos():
+    """列出输入目录中的所有视频文件"""
+    try:
+        input_dir = '/home/vipuser/Downloads/MAP-Net/input'
+        if not os.path.exists(input_dir):
+            return jsonify({'videos': [], 'message': '输入目录不存在'})
+        
+        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
+        videos = []
+        
+        for file in os.listdir(input_dir):
+            if any(file.lower().endswith(ext) for ext in video_extensions):
+                file_path = os.path.join(input_dir, file)
+                file_size = os.path.getsize(file_path)
+                file_mtime = os.path.getmtime(file_path)
+                
+                videos.append({
+                    'filename': file,
+                    'size': file_size,
+                    'size_mb': round(file_size / (1024 * 1024), 2),
+                    'modified_time': datetime.fromtimestamp(file_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+        
+        # 按修改时间排序
+        videos.sort(key=lambda x: x['modified_time'], reverse=True)
+        
+        return jsonify({
+            'videos': videos,
+            'count': len(videos)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'获取视频列表失败: {str(e)}'}), 500
+
+@app.route('/list_output_videos')
+def list_output_videos():
+    """列出输出目录中的所有视频文件"""
+    try:
+        output_dir = '/home/vipuser/Downloads/MAP-Net/result/videos'
+        if not os.path.exists(output_dir):
+            return jsonify({'videos': [], 'message': '输出目录不存在'})
+        
+        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
+        videos = []
+        
+        for file in os.listdir(output_dir):
+            if any(file.lower().endswith(ext) for ext in video_extensions):
+                file_path = os.path.join(output_dir, file)
+                file_size = os.path.getsize(file_path)
+                file_mtime = os.path.getmtime(file_path)
+                
+                videos.append({
+                    'filename': file,
+                    'size': file_size,
+                    'size_mb': round(file_size / (1024 * 1024), 2),
+                    'modified_time': datetime.fromtimestamp(file_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+        
+        # 按修改时间排序
+        videos.sort(key=lambda x: x['modified_time'], reverse=True)
+        
+        return jsonify({
+            'videos': videos,
+            'count': len(videos)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'获取输出视频列表失败: {str(e)}'}), 500
+
+@app.route('/input_video/<filename>')
+def serve_input_video(filename):
+    """提供输入视频文件服务"""
+    input_dir = '/home/vipuser/Downloads/MAP-Net/input'
+    file_path = os.path.join(input_dir, filename)
+    
+    if os.path.exists(file_path):
+        return send_from_directory(input_dir, filename)
+    else:
+        return "Input video file not found", 404
+
+@app.route('/convert_output_video/<filename>')
+def convert_output_video(filename):
+    """将输出视频转换为网页兼容的H.264格式"""
+    try:
+        input_path = os.path.join('/home/vipuser/Downloads/MAP-Net/result/videos', filename)
+        # 创建转换后的文件存储目录
+        converted_dir = '/home/vipuser/Downloads/MAP-Net/converted_output'
+        os.makedirs(converted_dir, exist_ok=True)
+        
+        # 生成转换后的文件名
+        base_name = os.path.splitext(filename)[0]
+        converted_filename = f"{base_name}_output_converted.mp4"
+        output_path = os.path.join(converted_dir, converted_filename)
+        
+        # 检查原文件是否存在
+        if not os.path.exists(input_path):
+            return jsonify({'error': '输出视频文件不存在'}), 404
+            
+        # 检查是否已经转换过
+        if os.path.exists(output_path):
+            return send_from_directory(converted_dir, converted_filename)
+        
+        # 使用ffmpeg转换视频为网页兼容格式
+        cmd = [
+            'ffmpeg', '-i', input_path,
+            '-c:v', 'libx264',  # 使用H.264编码
+            '-c:a', 'aac',      # 使用AAC音频编码
+            '-movflags', '+faststart',  # 优化网页播放
+            '-preset', 'medium',  # 平衡质量和速度
+            '-crf', '23',       # 质量设置
+            '-y',               # 覆盖输出文件
+            output_path
+        ]
+        
+        print(f"开始转换输出视频: {input_path} -> {output_path}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5分钟超时
+        
+        if result.returncode == 0:
+            print(f"输出视频转换成功: {converted_filename}")
+            return send_from_directory(converted_dir, converted_filename)
+        else:
+            print(f"输出视频转换失败: {result.stderr}")
+            return jsonify({'error': f'输出视频转换失败: {result.stderr}'}), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': '输出视频转换超时'}), 500
+    except Exception as e:
+        print(f"输出视频转换异常: {str(e)}")
+        return jsonify({'error': f'输出视频转换异常: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8800)
