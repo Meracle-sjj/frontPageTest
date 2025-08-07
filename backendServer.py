@@ -412,8 +412,28 @@ def clear_cache(module_name='infrared'):
                 elif os.path.isdir(item_path):
                     shutil.rmtree(item_path)
 
+        # 清理转换后的视频文件
+        converted_dir = '/home/vipuser/Downloads/MAP-Net/converted'
+        if os.path.exists(converted_dir):
+            for item in os.listdir(converted_dir):
+                item_path = os.path.join(converted_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+
+        # 清理转换后的输出视频文件
+        converted_output_dir = '/home/vipuser/Downloads/MAP-Net/converted_output'
+        if os.path.exists(converted_output_dir):
+            for item in os.listdir(converted_output_dir):
+                item_path = os.path.join(converted_output_dir, item)
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+
         return jsonify({
-            'message': f'{config["name"]}缓存已清除，所有上传和输出文件已删除',
+            'message': f'{config["name"]}缓存已清除，所有上传、输出和转换后的视频文件已删除',
             'module': module_name
         })
     except Exception as e:
