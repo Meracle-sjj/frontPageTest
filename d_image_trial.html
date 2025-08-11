@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法试用 | 图像数据合成</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <!-- GPU监控组件 - 调试版 -->
+    <script src="gpu_monitor_debug.js"></script>
+    <!-- JSZip库用于打包下载多个图片文件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', '微软雅黑', Arial, sans-serif;
+            background: #f6f8fa;
+            color: #23272f;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 48px 40px 40px 40px;
+        }
+        h1 {
+            color: #1769aa;
+            font-size: 2rem;
+            margin-bottom: 18px;
+            font-weight: 700;
+        }
+        .upload-btn {
+            display: block;
+            margin: 0 auto 24px auto;
+            padding: 12px 28px;
+            font-size: 1.08rem;
+            border: none;
+            border-radius: 8px;
+            background: #1769aa;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .upload-btn:hover {
+            background: #125b8c;
+        }
+        .result-area {
+            margin-top: 24px;
+            text-align: center;
+            min-height: 120px;
+            color: #888;
+            font-size: 1.08rem;
+        }
+        .preview-image {
+            max-width: 90%;
+            border-radius: 8px;
+            margin-top: 12px;
+            box-shadow: 0 1px 8px rgba(23,105,170,0.08);
+        }
+        
+        /* 状态指示器动画 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        /* 滚动条样式优化 */
+        #batch-training-output::-webkit-scrollbar {
+            width: 8px;
+        }
+        #batch-training-output::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        #batch-training-output::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+        #batch-training-output::-webkit-scrollbar-thumb:hover {
+            background: #5a6578;
+        }
+        
+        /* 输入图片预览样式 */
+        .dataset-images-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .dataset-image-item {
+            flex: 0 0 auto;
+            max-width: 180px;
+            text-align: center;
+        }
+        
+        .dataset-image-card {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .dataset-image-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .dataset-image {
+            max-width: 160px;
+            max-height: 120px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+        
+        /* 输出图片预览样式 */
+        .output-image-pair {
+            flex: 0 0 auto;
+            max-width: 380px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .output-pair-card {
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            padding: 15px;
+            background: #f8f9fa;
+            box-shadow: 0 2px 8px rgba(40,167,69,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .output-pair-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40,167,69,0.2);
+        }
+        
+        .output-images-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .output-single-image {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .output-image {
+            max-width: 160px;
+            max-height: 120px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid #dee2e6;
+        }
+        
+        .output-rgb-image {
+            border-color: #28a745;
+        }
+        
+        .output-depth-image {
+            border-color: #6f42c1;
+        }
+        
+        @media (max-width: 768px) {
+            .dataset-image-item {
+                max-width: 150px;
+            }
+            .dataset-image {
+                max-width: 130px;
+                max-height: 100px;
+            }
+            .output-image-pair {
+                max-width: 100%;
+            }
+            .output-images-row {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .output-image {
+                max-width: 140px;
+                max-height: 110px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width:600px;margin:32px auto 0 auto;text-align:left;">
+        <a href="index.html" style="display:inline-block;padding:8px 18px;background:#e3eef7;color:#1769aa;border-radius:6px;text-decoration:none;font-size:1.02rem;font-weight:500;box-shadow:0 1px 6px rgba(23,105,170,0.06);transition:background 0.2s;">← 返回首页</a>
+    </div>
+    <div class="container">
+        <h1>图像算法试用 
+            <button id="download-dataset-btn" class="upload-btn" style="background:#9c27b0;margin-left:20px;display:inline-block;padding:8px 16px;font-size:0.9rem;">下载推荐数据集</button>
+        </h1>
+        
+        <!-- 重要说明信息 -->
+        <div style="background:#e7f3ff;border:1px solid #b3d4fc;border-radius:8px;padding:18px;margin-bottom:20px;font-size:0.95rem;color:#0c5460;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <strong style="color:#1769aa;font-size:1.1rem;">使用说明</strong>
+            </div>
+            <div style="line-height:1.6;">
+                <div style="margin-bottom:10px;">
+                    <strong>1. 推荐数据集来源：</strong>本系统提供的推荐数据集来自 
+                    <a href="https://github.com/facebookresearch/NSVF#dataset" target="_blank" style="color:#1769aa;text-decoration:underline;">
+                        NSVF dataset (GitHub)
+                    </a>，点击上方"下载推荐数据集"按钮可获取其中的一小部分用于测试。
+                </div>
+                <div style="margin-bottom:10px;">
+                    <strong>2. 自行上传说明：</strong>若选择自行下载数据，上传时请上传实体名称文件夹（例如：Bike、Robot 等），而不是单独的文件。
+                </div>
+                <div style="margin-bottom:0;">
+                    <strong>3. 快速体验：</strong>本机已有一部分测试数据，可以在页面底部点击"数据集预览"模块来快速查看输入与输出对比结果。
+                </div>
+            </div>
+        </div>
+        
+        <input type="file" id="folder-upload" webkitdirectory directory multiple class="upload-btn" style="margin-bottom:12px;">
+        <button id="upload-btn" class="upload-btn" style="background:#28a745;margin-bottom:24px;" disabled>上传文件夹到服务器</button>
+        <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">清除缓存</button>
+        <div class="result-area" id="result-area">请选择一个文件夹，然后点击上传按钮。</div>
+        
+        <!-- 批量训练相关按钮 -->
+        <div style="border-top:2px solid #e3eef7;margin:30px 0;padding-top:20px;">
+            <h3 style="color:#1769aa;margin-bottom:15px;text-align:center;">批量训练脚本</h3>
+            
+            <!-- GPU资源提示 -->
+            <div style="background:#fff3cd;border:1px solid #ffeaa7;border-radius:8px;padding:15px;margin-bottom:20px;font-size:0.95rem;color:#856404;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <strong style="color:#1769aa;">算力资源提示</strong>
+                </div>
+                <div style="line-height:1.4;">
+                    算力资源有限，开始执行前请按 <kbd style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:3px;padding:2px 6px;font-size:0.85rem;">Ctrl+G</kbd> 或点击右侧按钮查看GPU资源。
+                    本GPU满载时最多能并行执行<strong style="color:#e74c3c;">2个数据集</strong>训练。
+                </div>
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ffeaa7;line-height:1.4;">
+                    <strong style="color:#d63384;">训练参数说明:</strong> 为缩减等待时间，当前epoch设置为15，实际使用时推荐epoch至少为30以获得更好的效果。
+                </div>
+            </div>
+            
+            <div style="text-align:center;margin-bottom:15px;">
+                <button id="start-batch-training-btn" class="upload-btn" style="background:#4caf50;">启动批量训练</button>
+                <button id="stop-batch-training-btn" class="upload-btn" style="background:#f44336;display:none;">停止训练</button>
+            </div>
+            <div id="batch-training-output" class="result-area" style="min-height:200px;max-height:500px;overflow-y:auto;background:#1a1a1a;color:#e0e0e0;font-family:'Consolas', 'Monaco', 'Courier New', monospace;font-size:0.9rem;white-space:pre-wrap;text-align:left;display:none;padding:15px;border-radius:8px;border:1px solid #333;line-height:1.4;position:relative;"></div>
+            <div id="training-status-indicator" style="display:none;text-align:center;margin-top:10px;font-size:0.8rem;color:#64748b;">
+                <span id="status-text">训练进行中...</span>
+                <span id="status-dot" style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;margin-left:8px;animation:pulse 2s infinite;"></span>
+            </div>
+        </div>
+        
+        <!-- 数据集预览（输入和输出对比） -->
+        <div style="border-top:2px solid #e3eef7;margin:30px 0;padding-top:20px;">
+            <h3 style="color:#1769aa;margin-bottom:15px;text-align:center;">数据集预览（输入与输出对比）</h3>
+            <div style="background:#e7f3ff;border:1px solid #b3d4fc;border-radius:8px;padding:15px;margin-bottom:15px;font-size:0.95rem;color:#0c5460;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <strong style="color:#1769aa;">数据展示说明</strong>
+                </div>
+                <div style="line-height:1.4;margin-bottom:10px;">
+                    本机上已存有部分测试数据，直接点击下方按钮即可展示输入与输出对比效果。
+                    若想体验完整的生成过程，请先点击"清除缓存"按钮清理现有数据，然后重新上传数据集并执行批量训练。
+                </div>
+                <div style="line-height:1.4;padding-top:10px;border-top:1px solid #b3d4fc;color:#0c5460;">
+                    <strong style="color:#6f42c1;">随机展示说明:</strong> 每次展示的为随机选取的5组输入和5组输出图片，点击"刷新预览"按钮可重新随机选择5组输入和输出进行展示。
+                </div>
+            </div>
+            <div style="text-align:center;margin-bottom:15px;">
+                <button id="load-comparison-preview-btn" class="upload-btn" style="background:#1769aa;">加载数据集对比预览</button>
+                <button id="refresh-comparison-preview-btn" class="upload-btn" style="background:#17a2b8;display:none;">刷新预览</button>
+            </div>
+            <div id="comparison-preview-container" style="display:none;">
+                <!-- 数据集对比预览将在这里显示 -->
+            </div>
+        </div>
+        
+        <button id="download-results-btn" class="upload-btn" style="background:#4caf50;margin-bottom:18px;display:none;">保存输出图片到本地</button>
+        <button id="download-all-btn" class="upload-btn" style="background:#1769aa;margin-bottom:18px;display:none;">下载全部结果</button>
+        <div id="infer-result" class="result-area"></div>
+        <div style="text-align:center;color:#888;font-size:1.02rem;margin-top:38px;">
+            前后端技术支持：施钧舰
+        </div>
+    </div>
+    
+    <script>
+        // 清除缓存按钮事件
+        document.getElementById('clear-cache-btn').onclick = function() {
+            const inferResult = document.getElementById('infer-result');
+            inferResult.innerHTML = '';
+            result.innerHTML = '正在清除缓存...';
+            // 隐藏下载按钮并清空结果数据
+            downloadBtn.style.display = 'none';
+            downloadAllBtn.style.display = 'none';
+            currentResultImages = [];
+            
+            fetch('/clear_cache/image', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.message) {
+                        result.innerHTML = `<div style="color:#1769aa;">${data.message}</div>`;
+                    } else {
+                        result.innerHTML = `<div style="color:red;">${data.error || '清除缓存失败'}</div>`;
+                    }
+                    // 清空本地状态
+                    selectedFiles = [];
+                    uploadBtn.disabled = true;
+                    uploadBtn.style.background = '#ccc';
+                })
+                .catch(err => {
+                    result.innerHTML = `<div style="color:red;">清除缓存失败：${err}</div>`;
+                });
+        };
+        
+        const upload = document.getElementById('folder-upload');
+        const uploadBtn = document.getElementById('upload-btn');
+        const result = document.getElementById('result-area');
+        const downloadBtn = document.getElementById('download-results-btn');
+        const downloadAllBtn = document.getElementById('download-all-btn');
+        const downloadDatasetBtn = document.getElementById('download-dataset-btn');
+        let selectedFiles = [];
+        let selectedFolderName = '';
+        let currentResultImages = []; // 存储当前处理结果的图片数据
+
+        // 数据集下载按钮事件
+        downloadDatasetBtn.onclick = function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '正在准备数据集...';
+            
+            // 显示下载提示
+            result.innerHTML = '<div style="color:#ff9800;font-weight:bold;">📦 正在打包数据集文件，数据集较大(约300MB)，请耐心等待...</div>';
+            
+            // 添加时间戳参数避免缓存
+            const timestamp = new Date().getTime();
+            
+            // 设置较长的超时时间
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+            
+            fetch(`/download_dataset/image?t=${timestamp}`, {
+                signal: controller.signal
+            })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    // 显示下载进度
+                    result.innerHTML = '<div style="color:#1769aa;font-weight:bold;">📥 数据集打包完成，正在下载...</div>';
+                    
+                    // 从响应头中获取文件名
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'image_dataset.zip'; // 默认文件名
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+                    
+                    return response.blob().then(blob => ({ blob, filename }));
+                })
+                .then(({ blob, filename }) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // 显示成功信息
+                    result.innerHTML = '<div style="color:#4caf50;font-weight:bold;">✅ 数据集下载成功！文件已保存到下载文件夹</div>';
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 1000);
+                })
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    let errorMsg = '数据集下载失败';
+                    
+                    if (err.name === 'AbortError') {
+                        errorMsg = '下载超时，数据集过大，请稍后重试';
+                    } else if (err.message.includes('HTTP')) {
+                        errorMsg = `服务器错误: ${err.message}`;
+                    } else {
+                        errorMsg = `下载失败: ${err.message}`;
+                    }
+                    
+                    result.innerHTML = `<div style="color:#f44336;font-weight:bold;">❌ ${errorMsg}</div>`;
+                    console.error('数据集下载详细错误:', err);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '下载推荐数据集';
+                });
+        };
+
+        // 页面加载时检测上传状态
+        window.onload = function() {
+            fetch('/upload_status/image')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.has_files) {
+                        const fileCount = data.total_files;
+                        const latestFile = data.latest_filename;
+                        result.innerHTML = `已上传文件夹，包含${fileCount}个文件，最新：${latestFile}，上传时间：${data.latest_upload_time}`;
+                    } else {
+                        result.innerHTML = '请选择一个文件夹，然后点击上传按钮。';
+                    }
+                })
+                .catch(err => {
+                    result.innerHTML = '请选择一个文件夹，然后点击上传按钮。';
+                });
+        };
+
+        // 文件夹选择事件
+        upload.onchange = function(e) {
+            const files = Array.from(e.target.files);
+            selectedFiles = files;
+            
+            if (files.length > 0) {
+                // 获取文件夹名称（从第一个文件的路径中提取）
+                const firstFilePath = files[0].webkitRelativePath;
+                selectedFolderName = firstFilePath.split('/')[0];
+                
+                // 按文件类型分类统计
+                const fileTypes = {};
+                const folderStructure = {};
+                
+                files.forEach(file => {
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    fileTypes[extension] = (fileTypes[extension] || 0) + 1;
+                    
+                    // 构建文件夹结构
+                    const pathParts = file.webkitRelativePath.split('/');
+                    let current = folderStructure;
+                    pathParts.forEach((part, index) => {
+                        if (index === pathParts.length - 1) {
+                            // 这是文件
+                            if (!current._files) current._files = [];
+                            current._files.push(part);
+                        } else {
+                            // 这是文件夹
+                            if (!current[part]) current[part] = {};
+                            current = current[part];
+                        }
+                    });
+                });
+                
+                let previewHtml = `
+                    <div style="margin-bottom:15px;color:#1769aa;font-weight:bold;">
+                        📁 已选择文件夹: ${selectedFolderName} (共 ${files.length} 个文件)
+                    </div>
+                `;
+                
+                // 显示文件类型统计
+                let typeStatsHtml = '<div style="margin-bottom:15px;"><strong>文件类型统计:</strong><br>';
+                Object.entries(fileTypes).forEach(([type, count]) => {
+                    const icon = getFileTypeIcon(type);
+                    typeStatsHtml += `<span style="margin:5px;padding:4px 8px;background:#e3eef7;border-radius:4px;display:inline-block;">${icon} ${type.toUpperCase()}: ${count}</span>`;
+                });
+                typeStatsHtml += '</div>';
+                
+                // 显示文件夹结构预览（只显示前几层）
+                let structureHtml = '<div style="margin-bottom:15px;"><strong>文件夹结构预览:</strong><div style="font-family:monospace;background:#f8f9fa;padding:10px;border-radius:6px;font-size:0.9rem;max-height:200px;overflow-y:auto;">';
+                structureHtml += renderFolderStructure(folderStructure, 0, 2); // 最多显示2层
+                structureHtml += '</div></div>';
+                
+                result.innerHTML = previewHtml + typeStatsHtml + structureHtml;
+                uploadBtn.disabled = false;
+                uploadBtn.style.background = '#28a745';
+            } else {
+                result.innerHTML = '请选择一个文件夹，然后点击上传按钮。';
+                uploadBtn.disabled = true;
+                uploadBtn.style.background = '#ccc';
+                selectedFolderName = '';
+            }
+        };
+
+        // 获取文件类型图标
+        function getFileTypeIcon(extension) {
+            const iconMap = {
+                'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'bmp': '🖼️', 'tiff': '🖼️',
+                'txt': '📄', 'json': '📋', 'xml': '📋', 'csv': '📊',
+                'mp4': '🎥', 'avi': '🎥', 'mov': '🎥',
+                'zip': '🗜️', 'rar': '🗜️', '7z': '🗜️',
+                'pdf': '📕', 'doc': '📘', 'docx': '📘',
+                'py': '🐍', 'js': '💛', 'html': '🌐', 'css': '🎨'
+            };
+            return iconMap[extension] || '📄';
+        }
+
+        // 渲染文件夹结构
+        function renderFolderStructure(structure, depth, maxDepth) {
+            if (depth > maxDepth) return '';
+            
+            let html = '';
+            const indent = '  '.repeat(depth);
+            
+            Object.entries(structure).forEach(([name, content]) => {
+                if (name === '_files') {
+                    // 显示文件
+                    content.slice(0, 5).forEach(fileName => {
+                        html += `${indent}📄 ${fileName}\n`;
+                    });
+                    if (content.length > 5) {
+                        html += `${indent}... 还有 ${content.length - 5} 个文件\n`;
+                    }
+                } else {
+                    // 显示文件夹
+                    html += `${indent}📁 ${name}/\n`;
+                    html += renderFolderStructure(content, depth + 1, maxDepth);
+                }
+            });
+            
+            return html;
+        }
+
+        // 上传按钮点击事件（文件夹批量上传）
+        uploadBtn.onclick = function() {
+            if (selectedFiles.length === 0) return;
+            
+            result.innerHTML = `<div style="color:#1769aa;">正在上传文件夹 "${selectedFolderName}" (${selectedFiles.length} 个文件) 到服务器...</div>`;
+            uploadBtn.disabled = true;
+            uploadBtn.style.background = '#ccc';
+            
+            let uploadCount = 0;
+            let successCount = 0;
+            let results = [];
+            
+            // 创建FormData，包含文件夹名称信息
+            const folderFormData = new FormData();
+            folderFormData.append('folder_name', selectedFolderName);
+            
+            selectedFiles.forEach((file, index) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('relative_path', file.webkitRelativePath);
+                formData.append('folder_name', selectedFolderName);
+                
+                fetch('/upload_folder/image', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    uploadCount++;
+                    if (data.msg) {
+                        successCount++;
+                        results.push(`✓ ${file.webkitRelativePath}: ${data.msg}`);
+                    } else {
+                        results.push(`✗ ${file.webkitRelativePath}: ${data.error || '上传失败'}`);
+                    }
+                    
+                    // 更新进度
+                    const progressPercent = Math.round((uploadCount / selectedFiles.length) * 100);
+                    result.innerHTML = `
+                        <div style="color:#1769aa;margin-bottom:10px;">
+                            上传进度: ${uploadCount}/${selectedFiles.length} (${progressPercent}%)
+                        </div>
+                        <div style="background:#e3eef7;border-radius:8px;height:20px;overflow:hidden;">
+                            <div style="background:#1769aa;height:100%;width:${progressPercent}%;transition:width 0.3s;"></div>
+                        </div>
+                    `;
+                    
+                    if (uploadCount === selectedFiles.length) {
+                        result.innerHTML = `
+                            <div style="color:#1769aa;margin-bottom:10px;">
+                                文件夹 "${selectedFolderName}" 上传完成！成功: ${successCount}/${selectedFiles.length}
+                            </div>
+                            <div style="text-align:left;font-size:0.9rem;max-height:200px;overflow-y:auto;background:#f8f9fa;padding:10px;border-radius:6px;">
+                                ${results.join('<br>')}
+                            </div>
+                            <div style="margin-top:10px;color:#666;font-size:0.9rem;">
+                                文件夹已保存到: /home/vipuser/home/img/userInput/Synthetic_NSVF/${selectedFolderName}/
+                            </div>
+                        `;
+                        uploadBtn.disabled = false;
+                        uploadBtn.style.background = '#28a745';
+                        selectedFiles = [];
+                        selectedFolderName = '';
+                    }
+                })
+                .catch(err => {
+                    uploadCount++;
+                    results.push(`✗ ${file.webkitRelativePath}: ${err}`);
+                    
+                    const progressPercent = Math.round((uploadCount / selectedFiles.length) * 100);
+                    result.innerHTML = `
+                        <div style="color:#1769aa;margin-bottom:10px;">
+                            上传进度: ${uploadCount}/${selectedFiles.length} (${progressPercent}%)
+                        </div>
+                        <div style="background:#e3eef7;border-radius:8px;height:20px;overflow:hidden;">
+                            <div style="background:#1769aa;height:100%;width:${progressPercent}%;transition:width 0.3s;"></div>
+                        </div>
+                    `;
+                    
+                    if (uploadCount === selectedFiles.length) {
+                        result.innerHTML = `
+                            <div style="color:#1769aa;margin-bottom:10px;">
+                                文件夹 "${selectedFolderName}" 上传完成！成功: ${successCount}/${selectedFiles.length}
+                            </div>
+                            <div style="text-align:left;font-size:0.9rem;max-height:200px;overflow-y:auto;background:#f8f9fa;padding:10px;border-radius:6px;">
+                                ${results.join('<br>')}
+                            </div>
+                            <div style="margin-top:10px;color:#666;font-size:0.9rem;">
+                                文件夹已保存到: /home/vipuser/home/img/userInput/Synthetic_NSVF/${selectedFolderName}/
+                            </div>
+                        `;
+                        uploadBtn.disabled = false;
+                        uploadBtn.style.background = '#28a745';
+                        selectedFiles = [];
+                        selectedFolderName = '';
+                    }
+                });
+            });
+        };
+        
+        // 下载单个图片文件（直接下载静态文件）
+        function downloadImageFile(filename) {
+            console.log('尝试下载文件:', filename);
+            
+            // 创建一个临时的测试链接，检查文件是否可访问
+            fetch('/result/images/' + filename, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('文件可访问，开始下载');
+                        const a = document.createElement('a');
+                        a.href = '/result/images/' + filename;
+                        a.download = filename;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                        }, 100);
+                    } else {
+                        console.error('文件不可访问:', response.status);
+                        alert('文件下载失败：' + response.status);
+                    }
+                })
+                .catch(err => {
+                    console.error('下载检查失败:', err);
+                    alert('文件下载失败，请重试');
+                });
+        }
+
+        // 下载结果图片按钮事件
+        document.getElementById('download-results-btn').onclick = function() {
+            if (currentResultImages.length === 0) {
+                alert('没有可下载的图片文件');
+                return;
+            }
+            downloadBtn.disabled = true;
+            downloadBtn.innerHTML = '正在准备下载...';
+            try {
+                if (currentResultImages.length === 1) {
+                    downloadImageFile(currentResultImages[0].filename);
+                } else {
+                    // 多个图片文件逐个下载
+                    downloadImagesSequentially(currentResultImages);
+                }
+            } catch (error) {
+                alert('下载失败，请重试');
+            } finally {
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '保存输出图片到本地';
+            }
+        };
+
+        // 下载全部内容按钮事件（zip整个output文件夹）
+        document.getElementById('download-all-btn').onclick = function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '正在打包...';
+            
+            // 添加时间戳参数避免缓存
+            const timestamp = new Date().getTime();
+            fetch(`/download_all_result/image?t=${timestamp}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('下载失败');
+                    
+                    // 从响应头中获取文件名
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'image_results.zip'; // 默认文件名
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+                    
+                    return response.blob().then(blob => ({ blob, filename }));
+                })
+                .then(({ blob, filename }) => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                })
+                .catch(err => {
+                    alert('下载失败: ' + err);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '下载全部结果';
+                });
+        };
+
+        // 逐个下载图片文件（使用静态文件路径）
+        function downloadImagesSequentially(images) {
+            images.forEach((image, index) => {
+                setTimeout(() => {
+                    const filename = image.filename;
+                    downloadImageFile(filename);
+                }, index * 500); // 每0.5秒下载一个，避免浏览器阻止
+            });
+        }
+
+        // 加载输入图片用于对比显示
+        function loadInputImagesForComparison(outputImages) {
+            // 首先获取所有输入图片列表
+            fetch('/list_input_images')
+                .then(res => res.json())
+                .then(inputData => {
+                    if (inputData.error) {
+                        console.error('获取输入图片列表失败:', inputData.error);
+                        outputImages.forEach((outputImage, index) => {
+                            const container = document.getElementById(`input-container-${index}`);
+                            if (container) {
+                                container.innerHTML = `
+                                    <div style="color:#dc3545;padding:80px 20px;">
+                                        <div>获取输入图片列表失败</div>
+                                        <div style="font-size:0.8rem;margin-top:5px;">${inputData.error}</div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        return;
+                    }
+                    
+                    const inputImages = inputData.images || [];
+                    
+                    // 为每个输出图片匹配对应的输入图片
+                    outputImages.forEach((outputImage, index) => {
+                        const container = document.getElementById(`input-container-${index}`);
+                        if (!container) return;
+                        
+                        // 尝试通过文件名匹配找到对应的输入图片
+                        const baseName = outputImage.filename.replace(/(_processed|_result|_output)?\.(jpg|jpeg|png|bmp|tiff)$/i, '');
+                        
+                        // 寻找最匹配的输入图片
+                        let matchedInput = inputImages.find(input => {
+                            const inputBaseName = input.filename.replace(/\.(jpg|jpeg|png|bmp|tiff)$/i, '');
+                            return inputBaseName === baseName || input.filename.includes(baseName) || baseName.includes(inputBaseName);
+                        });
+                        
+                        // 如果没有找到匹配的，使用第一个输入图片
+                        if (!matchedInput && inputImages.length > 0) {
+                            matchedInput = inputImages[0];
+                        }
+                        
+                        if (matchedInput) {
+                            container.innerHTML = `
+                                <img src="/input/images/${matchedInput.filename}" 
+                                     style="max-width:100%;max-height:300px;border-radius:8px;" 
+                                     alt="输入图片"
+                                     onload="this.style.display='block';"
+                                     onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:80px 20px;&quot;><div>图片加载失败</div><div style=&quot;font-size:0.8rem;margin-top:5px;&quot;>${matchedInput.filename}</div></div>';">
+                                <div style="font-size:0.9rem;color:#333;margin-top:8px;">${matchedInput.filename}</div>
+                                <div style="font-size:0.8rem;color:#999;">原始图片 (${matchedInput.size_mb} MB)</div>
+                            `;
+                        } else {
+                            container.innerHTML = `
+                                <div style="color:#999;padding:80px 20px;">
+                                    <div style="font-size:3rem;margin-bottom:10px;">🖼️</div>
+                                    <div>未找到对应的输入图片</div>
+                                </div>
+                            `;
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error('加载输入图片失败:', err);
+                    // 显示错误信息
+                    outputImages.forEach((outputImage, index) => {
+                        const container = document.getElementById(`input-container-${index}`);
+                        if (container) {
+                            container.innerHTML = `
+                                <div style="color:#dc3545;padding:80px 20px;">
+                                    <div>加载输入图片失败</div>
+                                    <div style="font-size:0.8rem;margin-top:5px;">${err}</div>
+                                </div>
+                            `;
+                        }
+                    });
+                });
+        }
+
+        // 加载输出图片用于对比显示
+        function loadOutputImagesForComparison(outputImages) {
+            outputImages.forEach((outputImage, index) => {
+                const container = document.getElementById(`output-container-${index}`);
+                if (!container) return;
+                
+                container.innerHTML = `
+                    <img src="/result/images/${outputImage.filename}" 
+                         style="max-width:100%;max-height:300px;border-radius:8px;" 
+                         alt="输出图片"
+                         onload="this.style.display='block';"
+                         onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:80px 20px;&quot;><div>输出图片加载失败</div><div style=&quot;font-size:0.8rem;margin-top:5px;&quot;>${outputImage.filename}</div></div>';">
+                    <div style="font-size:0.9rem;color:#333;margin-top:8px;">${outputImage.filename}</div>
+                    <div style="font-size:0.8rem;color:#999;">处理后的图片</div>
+                `;
+            });
+        }
+
+        // 批量训练相关变量
+        let batchTrainingInterval = null;
+        let batchTrainingOutput = '';
+        
+        // 数据集预览相关变量
+        let inputDatasets = [];
+        let outputDatasets = [];
+        
+        // 加载数据集对比预览按钮事件
+        document.getElementById('load-comparison-preview-btn').onclick = function() {
+            const loadBtn = this;
+            const refreshBtn = document.getElementById('refresh-comparison-preview-btn');
+            const previewContainer = document.getElementById('comparison-preview-container');
+            
+            loadBtn.disabled = true;
+            loadBtn.innerHTML = '正在扫描数据集...';
+            
+            // 同时获取输入和输出数据集
+            Promise.all([
+                fetch('/list_input_datasets').then(res => res.json()),
+                fetch('/list_output_datasets').then(res => res.json())
+            ])
+            .then(([inputData, outputData]) => {
+                inputDatasets = inputData.datasets || [];
+                outputDatasets = outputData.datasets || [];
+                
+                if (inputDatasets.length === 0 && outputDatasets.length === 0) {
+                    previewContainer.innerHTML = `
+                        <div style="text-align:center;color:#6c757d;padding:40px;">
+                            <div style="font-size:1.2rem;margin-bottom:10px;">未找到任何数据集</div>
+                            <div style="font-size:0.9rem;">请先上传输入数据集或运行批量训练以生成输出数据</div>
+                        </div>
+                    `;
+                    previewContainer.style.display = 'block';
+                    loadBtn.disabled = false;
+                    loadBtn.innerHTML = '加载数据集对比预览';
+                    return;
+                }
+                
+                // 显示数据集对比预览
+                displayComparisonPreview(inputDatasets, outputDatasets);
+                
+                // 显示容器和刷新按钮
+                previewContainer.style.display = 'block';
+                loadBtn.style.display = 'none';
+                refreshBtn.style.display = 'inline-block';
+            })
+            .catch(err => {
+                previewContainer.innerHTML = `
+                    <div style="text-align:center;color:#dc3545;padding:40px;">
+                        <div style="font-size:1.2rem;margin-bottom:10px;">加载失败</div>
+                        <div style="font-size:0.9rem;">网络错误: ${err.message}</div>
+                    </div>
+                `;
+                previewContainer.style.display = 'block';
+                loadBtn.disabled = false;
+                loadBtn.innerHTML = '加载数据集对比预览';
+            });
+        };
+        
+        // 刷新数据集对比预览按钮事件
+        document.getElementById('refresh-comparison-preview-btn').onclick = function() {
+            const refreshBtn = this;
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '正在刷新...';
+            
+            // 重新显示预览（会随机选择新的图片）
+            displayComparisonPreview(inputDatasets, outputDatasets);
+            
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '刷新预览';
+        };
+        
+        // 显示输入数据集预览
+        function displayInputPreview(datasets) {
+            const previewContainer = document.getElementById('input-preview-container');
+            
+            if (!datasets || datasets.length === 0) {
+                previewContainer.innerHTML = `
+                    <div style="text-align:center;color:#6c757d;padding:40px;">
+                        <div style="font-size:1.2rem;">没有可预览的数据集</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div style="margin-bottom:20px;text-align:center;color:#1769aa;font-weight:bold;">
+                    找到 ${datasets.length} 个数据集，每个数据集随机展示 5 张图片
+                </div>
+            `;
+            
+            datasets.forEach((dataset, index) => {
+                html += `
+                    <div style="margin:30px 0;border:1px solid #dee2e6;border-radius:12px;padding:20px;background:#f8f9fa;">
+                        <h4 style="color:#1769aa;margin-bottom:15px;text-align:center;">
+                            数据集: ${dataset.name} (共 ${dataset.image_count} 张图片)
+                        </h4>
+                        <div id="dataset-${index}-images" style="display:flex;flex-wrap:wrap;gap:15px;justify-content:center;">
+                            <div style="text-align:center;color:#6c757d;width:100%;padding:20px;">
+                                正在加载图片...
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            previewContainer.innerHTML = html;
+            
+            // 异步加载每个数据集的图片
+            datasets.forEach((dataset, index) => {
+                loadDatasetImages(dataset.name, index);
+            });
+        }
+        
+        // 加载单个数据集的图片
+        function loadDatasetImages(datasetName, index) {
+            fetch(`/get_random_dataset_images/${datasetName}?count=5`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+                    return res.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            throw new Error(`服务器返回非JSON格式数据: ${text}`);
+                        }
+                    });
+                })
+                .then(data => {
+                    const container = document.getElementById(`dataset-${index}-images`);
+                    
+                    if (data.error) {
+                        container.innerHTML = `
+                            <div style="text-align:center;color:#dc3545;width:100%;padding:20px;">
+                                <div>加载失败: ${data.error}</div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    if (!data.images || data.images.length === 0) {
+                        container.innerHTML = `
+                            <div style="text-align:center;color:#6c757d;width:100%;padding:20px;">
+                                <div>该数据集中没有找到图片</div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // 显示图片
+                    let imagesHtml = '';
+                    data.images.forEach((imageName, imgIndex) => {
+                        imagesHtml += `
+                            <div class="dataset-image-item">
+                                <div class="dataset-image-card">
+                                    <img src="/input/datasets/${datasetName}/rgb/${imageName}" 
+                                         class="dataset-image"
+                                         alt="输入图片"
+                                         onload="this.style.display='block';"
+                                         onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:60px 10px;font-size:0.8rem;&quot;>图片加载失败</div>';">
+                                    <div style="font-size:0.8rem;color:#6c757d;margin-top:8px;word-break:break-all;">
+                                        ${imageName}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = imagesHtml;
+                    container.className = 'dataset-images-container';
+                })
+                .catch(err => {
+                    const container = document.getElementById(`dataset-${index}-images`);
+                    container.innerHTML = `
+                        <div style="text-align:center;color:#dc3545;width:100%;padding:20px;">
+                            <div>网络错误: ${err.message}</div>
+                        </div>
+                    `;
+                });
+        }
+        
+        // 显示数据集对比预览
+        function displayComparisonPreview(inputDatasets, outputDatasets) {
+            const previewContainer = document.getElementById('comparison-preview-container');
+            
+            // 创建数据集映射，找到输入和输出的对应关系
+            const datasetMap = {};
+            
+            // 添加输入数据集
+            inputDatasets.forEach(dataset => {
+                if (!datasetMap[dataset.name]) {
+                    datasetMap[dataset.name] = {};
+                }
+                datasetMap[dataset.name].input = dataset;
+            });
+            
+            // 添加输出数据集
+            outputDatasets.forEach(dataset => {
+                if (!datasetMap[dataset.name]) {
+                    datasetMap[dataset.name] = {};
+                }
+                datasetMap[dataset.name].output = dataset;
+            });
+            
+            const datasetNames = Object.keys(datasetMap);
+            
+            let html = `
+                <div style="margin-bottom:20px;text-align:center;color:#1769aa;font-weight:bold;">
+                    找到 ${datasetNames.length} 个数据集，每个数据集随机展示 5 组图片对比
+                </div>
+            `;
+            
+            datasetNames.forEach((datasetName, index) => {
+                const hasInput = !!datasetMap[datasetName].input;
+                const hasOutput = !!datasetMap[datasetName].output;
+                
+                html += `
+                    <div style="margin:30px 0;border:1px solid #dee2e6;border-radius:12px;padding:20px;background:#f8f9fa;">
+                        <h4 style="color:#1769aa;margin-bottom:15px;text-align:center;">
+                            数据集: ${datasetName}
+                            ${hasInput ? `<span style="color:#28a745;font-size:0.8rem;margin-left:10px;">[有输入]</span>` : ''}
+                            ${hasOutput ? `<span style="color:#6f42c1;font-size:0.8rem;margin-left:10px;">[有输出]</span>` : ''}
+                        </h4>
+                        <div id="comparison-dataset-${index}" style="margin-top:20px;">
+                            <div style="text-align:center;color:#6c757d;padding:20px;">
+                                正在加载图片...
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            previewContainer.innerHTML = html;
+            
+            // 异步加载每个数据集的图片对比
+            datasetNames.forEach((datasetName, index) => {
+                loadComparisonImages(datasetName, index, datasetMap[datasetName]);
+            });
+        }
+        
+        // 加载数据集对比图片
+        function loadComparisonImages(datasetName, index, datasetInfo) {
+            const container = document.getElementById(`comparison-dataset-${index}`);
+            const hasInput = !!datasetInfo.input;
+            const hasOutput = !!datasetInfo.output;
+            
+            // 创建Promise数组
+            const promises = [];
+            
+            if (hasInput) {
+                promises.push(
+                    fetch(`/get_random_dataset_images/${datasetName}?count=5`)
+                        .then(res => res.json())
+                        .then(data => ({ type: 'input', data }))
+                );
+            }
+            
+            if (hasOutput) {
+                promises.push(
+                    fetch(`/get_random_output_images/${datasetName}?count=5`)
+                        .then(res => res.json())
+                        .then(data => ({ type: 'output', data }))
+                );
+            }
+            
+            if (promises.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center;color:#6c757d;padding:20px;">
+                        该数据集没有可显示的数据
+                    </div>
+                `;
+                return;
+            }
+            
+            Promise.all(promises)
+                .then(results => {
+                    let inputImages = [];
+                    let outputImages = [];
+                    
+                    results.forEach(result => {
+                        if (result.type === 'input' && result.data.images) {
+                            inputImages = result.data.images;
+                        } else if (result.type === 'output' && result.data.images) {
+                            outputImages = result.data.images;
+                        }
+                    });
+                    
+                    // 生成对比显示HTML
+                    let comparisonHtml = '';
+                    
+                    if (hasInput && hasOutput) {
+                        // 同时有输入和输出，显示对比
+                        const maxCount = Math.max(inputImages.length, outputImages.length);
+                        
+                        comparisonHtml += `
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+                                <div style="text-align:center;">
+                                    <h5 style="color:#28a745;margin-bottom:15px;">输入图片 (${inputImages.length} 张)</h5>
+                                </div>
+                                <div style="text-align:center;">
+                                    <h5 style="color:#6f42c1;margin-bottom:15px;">输出图片 (${outputImages.length} 组)</h5>
+                                </div>
+                            </div>
+                        `;
+                        
+                        for (let i = 0; i < Math.min(5, maxCount); i++) {
+                            comparisonHtml += `
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;align-items:start;">
+                                    <div style="text-align:center;">
+                            `;
+                            
+                            if (i < inputImages.length) {
+                                const inputImage = inputImages[i];
+                                comparisonHtml += `
+                                    <div style="border:1px solid #28a745;border-radius:8px;padding:10px;background:#f8fff8;">
+                                        <img src="/input/datasets/${datasetName}/rgb/${inputImage}" 
+                                             style="max-width:100%;max-height:200px;border-radius:6px;"
+                                             alt="输入图片"
+                                             onload="this.style.display='block';"
+                                             onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:40px 10px;font-size:0.8rem;&quot;>输入图片加载失败</div>';">
+                                        <div style="font-size:0.7rem;color:#28a745;margin-top:8px;word-break:break-all;">
+                                            ${inputImage}
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                comparisonHtml += `
+                                    <div style="color:#6c757d;padding:40px;border:1px dashed #dee2e6;border-radius:8px;">
+                                        无对应输入图片
+                                    </div>
+                                `;
+                            }
+                            
+                            comparisonHtml += `
+                                    </div>
+                                    <div style="text-align:center;">
+                            `;
+                            
+                            if (i < outputImages.length) {
+                                const outputImage = outputImages[i];
+                                comparisonHtml += `
+                                    <div style="border:1px solid #6f42c1;border-radius:8px;padding:10px;background:#faf8ff;">
+                                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                            <div>
+                                                <img src="/output/${outputImage.output_folder}/results/${outputImage.rgb_filename}" 
+                                                     style="max-width:100%;max-height:120px;border-radius:4px;"
+                                                     alt="输出RGB图片"
+                                                     onload="this.style.display='block';"
+                                                     onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:20px 5px;font-size:0.7rem;&quot;>RGB图加载失败</div>';">
+                                                <div style="font-size:0.65rem;color:#6f42c1;margin-top:4px;font-weight:bold;">
+                                                    RGB (${outputImage.rgb_size_mb}MB)
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <img src="/output/${outputImage.output_folder}/results/${outputImage.depth_filename}" 
+                                                     style="max-width:100%;max-height:120px;border-radius:4px;"
+                                                     alt="输出深度图片"
+                                                     onload="this.style.display='block';"
+                                                     onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:20px 5px;font-size:0.7rem;&quot;>深度图加载失败</div>';">
+                                                <div style="font-size:0.65rem;color:#6f42c1;margin-top:4px;font-weight:bold;">
+                                                    深度 (${outputImage.depth_size_mb}MB)
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style="font-size:0.6rem;color:#6f42c1;margin-top:8px;word-break:break-all;">
+                                            编号: ${outputImage.number}
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                comparisonHtml += `
+                                    <div style="color:#6c757d;padding:40px;border:1px dashed #dee2e6;border-radius:8px;">
+                                        无对应输出图片
+                                    </div>
+                                `;
+                            }
+                            
+                            comparisonHtml += `
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else if (hasInput) {
+                        // 只有输入，显示输入图片
+                        comparisonHtml += `
+                            <div style="text-align:center;margin-bottom:15px;">
+                                <h5 style="color:#28a745;">输入图片 (${inputImages.length} 张)</h5>
+                            </div>
+                            <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:center;">
+                        `;
+                        
+                        inputImages.slice(0, 5).forEach(inputImage => {
+                            comparisonHtml += `
+                                <div style="flex:0 0 auto;text-align:center;border:1px solid #28a745;border-radius:8px;padding:10px;background:#f8fff8;">
+                                    <img src="/input/datasets/${datasetName}/rgb/${inputImage}" 
+                                         style="max-width:150px;max-height:120px;border-radius:6px;"
+                                         alt="输入图片"
+                                         onload="this.style.display='block';"
+                                         onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:40px 10px;font-size:0.8rem;&quot;>图片加载失败</div>';">
+                                    <div style="font-size:0.7rem;color:#28a745;margin-top:8px;word-break:break-all;max-width:150px;">
+                                        ${inputImage}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        comparisonHtml += '</div>';
+                    } else if (hasOutput) {
+                        // 只有输出，显示输出图片
+                        comparisonHtml += `
+                            <div style="text-align:center;margin-bottom:15px;">
+                                <h5 style="color:#6f42c1;">输出图片 (${outputImages.length} 组)</h5>
+                            </div>
+                            <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:center;">
+                        `;
+                        
+                        outputImages.slice(0, 5).forEach(outputImage => {
+                            comparisonHtml += `
+                                <div style="flex:0 0 auto;text-align:center;border:1px solid #6f42c1;border-radius:8px;padding:10px;background:#faf8ff;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                                        <div>
+                                            <img src="/output/${outputImage.output_folder}/results/${outputImage.rgb_filename}" 
+                                                 style="max-width:80px;max-height:80px;border-radius:4px;"
+                                                 alt="输出RGB图片"
+                                                 onload="this.style.display='block';"
+                                                 onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:15px 5px;font-size:0.7rem;&quot;>RGB图加载失败</div>';">
+                                            <div style="font-size:0.6rem;color:#6f42c1;margin-top:2px;font-weight:bold;">
+                                                RGB
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <img src="/output/${outputImage.output_folder}/results/${outputImage.depth_filename}" 
+                                                 style="max-width:80px;max-height:80px;border-radius:4px;"
+                                                 alt="输出深度图片"
+                                                 onload="this.style.display='block';"
+                                                 onerror="this.parentElement.innerHTML='<div style=&quot;color:#dc3545;padding:15px 5px;font-size:0.7rem;&quot;>深度图加载失败</div>';">
+                                            <div style="font-size:0.6rem;color:#6f42c1;margin-top:2px;font-weight:bold;">
+                                                深度
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:0.6rem;color:#6f42c1;word-break:break-all;max-width:170px;">
+                                        编号: ${outputImage.number}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        comparisonHtml += '</div>';
+                    }
+                    
+                    container.innerHTML = comparisonHtml;
+                })
+                .catch(err => {
+                    container.innerHTML = `
+                        <div style="text-align:center;color:#dc3545;padding:20px;">
+                            <div>加载失败: ${err.message}</div>
+                        </div>
+                    `;
+                });
+        }
+        
+        // 启动批量训练按钮事件
+        document.getElementById('start-batch-training-btn').onclick = function() {
+            const startBtn = this;
+            const stopBtn = document.getElementById('stop-batch-training-btn');
+            const outputDiv = document.getElementById('batch-training-output');
+            const statusIndicator = document.getElementById('training-status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            startBtn.disabled = true;
+            startBtn.innerHTML = '正在启动...';
+            
+            // 立即显示输出区域和初始化信息
+            outputDiv.style.display = 'block';
+            statusIndicator.style.display = 'block';
+            statusText.textContent = '正在启动训练脚本...';
+            outputDiv.innerHTML = '<span style="color:#06b6d4;">正在启动批量训练脚本...</span>\n';
+            batchTrainingOutput = '';
+            
+            fetch('/start_batch_training', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // 启动成功
+                        startBtn.style.display = 'none';
+                        stopBtn.style.display = 'inline-block';
+                        statusText.textContent = '训练进行中...';
+                        outputDiv.innerHTML += '<span style="color:#22c55e;">批量训练脚本启动成功</span>\n';
+                        outputDiv.innerHTML += '<span style="color:#3b82f6;">开始获取训练过程输出...</span>\n\n';
+                        
+                        // 开始轮询获取输出
+                        startPollingBatchTrainingOutput();
+                    } else {
+                        outputDiv.innerHTML += `<span style="color:#ef4444;">启动失败: ${data.error}</span>\n`;
+                        outputDiv.style.display = 'block';
+                        statusIndicator.style.display = 'none';
+                        startBtn.disabled = false;
+                        startBtn.innerHTML = '启动批量训练';
+                    }
+                })
+                .catch(err => {
+                    outputDiv.innerHTML += `<span style="color:#ef4444;">启动失败: ${err}</span>\n`;
+                    outputDiv.style.display = 'block';
+                    statusIndicator.style.display = 'none';
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = '启动批量训练';
+                });
+        };
+        
+        // 停止批量训练按钮事件
+        document.getElementById('stop-batch-training-btn').onclick = function() {
+            const startBtn = document.getElementById('start-batch-training-btn');
+            const stopBtn = this;
+            const outputDiv = document.getElementById('batch-training-output');
+            const statusIndicator = document.getElementById('training-status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '正在停止...';
+            statusText.textContent = '正在停止训练...';
+            
+            fetch('/stop_batch_training', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // 停止成功
+                        stopPollingBatchTrainingOutput();
+                        outputDiv.innerHTML += '\n<span style="color:#ef4444;font-weight:bold;">训练已被用户停止</span>\n';
+                        statusText.textContent = '训练已停止';
+                        
+                        // 恢复按钮状态
+                        setTimeout(() => {
+                            startBtn.style.display = 'inline-block';
+                            startBtn.disabled = false;
+                            startBtn.innerHTML = '启动批量训练';
+                            stopBtn.style.display = 'none';
+                            stopBtn.disabled = false;
+                            stopBtn.innerHTML = '停止训练';
+                            statusIndicator.style.display = 'none';
+                        }, 1000);
+                    } else {
+                        alert('停止失败: ' + data.error);
+                        stopBtn.disabled = false;
+                        stopBtn.innerHTML = '停止训练';
+                        statusText.textContent = '训练进行中...';
+                    }
+                })
+                .catch(err => {
+                    alert('停止失败: ' + err);
+                    stopBtn.disabled = false;
+                    stopBtn.innerHTML = '停止训练';
+                    statusText.textContent = '训练进行中...';
+                });
+        };
+        
+        // 清理ANSI转义序列的函数
+        function cleanAnsiSequences(text) {
+            if (!text) return '';
+            
+            // 移除ANSI颜色代码和控制序列
+            return text
+                // 移除颜色代码 (如 \033[0;31m, \033[1;33m 等)
+                .replace(/\x1b\[[0-9;]*m/g, '')
+                // 移除光标控制序列 (如 \033[1A, \033[K 等)
+                .replace(/\x1b\[[0-9]*[A-K]/g, '')
+                // 移除其他ANSI转义序列
+                .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+                // 移除可能的其他控制字符
+                .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '')
+                // 移除形如 [1A [K 的序列（不带 \x1b）
+                .replace(/\[[0-9]*[A-K]/g, '')
+                // 移除 \r 回车符
+                .replace(/\r/g, '')
+                // 处理重复的等号分隔线，合并为一行
+                .replace(/={20,}/g, '='.repeat(60))
+                // 移除多余的空行（超过2个连续空行合并为2个）
+                .replace(/\n{3,}/g, '\n\n')
+                // 移除行首的多余空格（保留缩进）
+                .replace(/^\s+/gm, (match) => match.length > 4 ? '    ' : match);
+        }
+        
+        // 格式化训练输出，提取关键信息并美化显示
+        function formatTrainingOutput(rawOutput) {
+            const cleanedOutput = cleanAnsiSequences(rawOutput);
+            
+            // 按行分割
+            const lines = cleanedOutput.split('\n');
+            const formattedLines = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) {
+                    formattedLines.push('');
+                    continue;
+                }
+                
+                // 格式化不同类型的输出行，并添加HTML样式
+                if (line.includes('训练进度总览')) {
+                    formattedLines.push(`<span style="color:#4a9eff;font-weight:bold;">${line}</span>`);
+                } else if (line.includes('Epoch') && line.includes('loss=') && line.includes('PSNR=')) {
+                    // 训练进度行，提取关键信息
+                    const match = line.match(/\[([^\]]+)\].*?Epoch\s+(\d+).*?(\d+%).*?loss=([\d\.]+).*?PSNR=([\d\.]+)/);
+                    if (match) {
+                        const [, dataset, epoch, progress, loss, psnr] = match;
+                        formattedLines.push(`<span style="color:#4ade80;">[<span style="color:#60a5fa;font-weight:bold;">${dataset}</span>] Epoch ${epoch} | ${progress} | Loss: <span style="color:#fbbf24;">${loss}</span> | PSNR: <span style="color:#34d399;">${psnr}</span></span>`);
+                    } else {
+                        formattedLines.push(`<span style="color:#4ade80;">${line}</span>`);
+                    }
+                } else if (line.includes('训练完成')) {
+                    formattedLines.push(`<span style="color:#22c55e;font-weight:bold;">${line}</span>`);
+                } else if (line.includes('训练失败')) {
+                    formattedLines.push(`<span style="color:#ef4444;font-weight:bold;">${line}</span>`);
+                } else if (line.includes('正在启动') || line.includes('等待中')) {
+                    formattedLines.push(`<span style="color:#facc15;">${line}</span>`);
+                } else if (line.includes('找到') && line.includes('数据集')) {
+                    formattedLines.push(`<span style="color:#06b6d4;">${line}</span>`);
+                } else if (line.includes('开始并行批量训练')) {
+                    formattedLines.push(`<span style="color:#8b5cf6;font-weight:bold;">${line}</span>`);
+                } else if (line.includes('所有任务完成')) {
+                    formattedLines.push(`<span style="color:#10b981;font-weight:bold;">${line}</span>`);
+                } else if (line.includes('成功') && line.includes('失败')) {
+                    formattedLines.push(`<span style="color:#3b82f6;font-weight:bold;">${line}</span>`);
+                } else if (line.startsWith('=')) {
+                    formattedLines.push(`<span style="color:#64748b;">${line}</span>`);
+                } else if (line.includes('验证环境') || line.includes('环境验证')) {
+                    formattedLines.push(`<span style="color:#0ea5e9;">${line}</span>`);
+                } else if (line.includes('错误') || line.includes('失败') || line.includes('Error') || line.includes('error')) {
+                    formattedLines.push(`<span style="color:#ef4444;">${line}</span>`);
+                } else if (line.includes('警告') || line.includes('Warning') || line.includes('warning')) {
+                    formattedLines.push(`<span style="color:#f59e0b;">${line}</span>`);
+                } else {
+                    formattedLines.push(`<span style="color:#e5e7eb;">${line}</span>`);
+                }
+            }
+            
+            return formattedLines.join('\n');
+        }
+
+        // 开始轮询批量训练输出
+        function startPollingBatchTrainingOutput() {
+            const outputDiv = document.getElementById('batch-training-output');
+            
+            batchTrainingInterval = setInterval(() => {
+                fetch('/get_batch_training_output')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.output) {
+                            // 清理ANSI序列并格式化输出
+                            const formattedOutput = formatTrainingOutput(data.output);
+                            outputDiv.innerHTML = formattedOutput;
+                            // 自动滚动到底部
+                            outputDiv.scrollTop = outputDiv.scrollHeight;
+                        }
+                        
+                        if (data.completed) {
+                            // 训练完成
+                            stopPollingBatchTrainingOutput();
+                            
+                            const startBtn = document.getElementById('start-batch-training-btn');
+                            const stopBtn = document.getElementById('stop-batch-training-btn');
+                            const statusIndicator = document.getElementById('training-status-indicator');
+                            const statusText = document.getElementById('status-text');
+                            
+                            if (data.success) {
+                                outputDiv.innerHTML += '\n<span style="color:#22c55e;font-weight:bold;">批量训练成功完成！</span>\n';
+                                statusText.textContent = '训练完成！';
+                            } else {
+                                outputDiv.innerHTML += '\n<span style="color:#f59e0b;font-weight:bold;">批量训练失败或被中断</span>\n';
+                                statusText.textContent = '训练失败或中断';
+                            }
+                            
+                            // 自动滚动到底部
+                            outputDiv.scrollTop = outputDiv.scrollHeight;
+                            
+                            // 恢复按钮状态
+                            setTimeout(() => {
+                                startBtn.style.display = 'inline-block';
+                                startBtn.disabled = false;
+                                startBtn.innerHTML = '启动批量训练';
+                                stopBtn.style.display = 'none';
+                                stopBtn.disabled = false;
+                                stopBtn.innerHTML = '停止训练';
+                                statusIndicator.style.display = 'none';
+                            }, 2000);
+                        }
+                    })
+                    .catch(err => {
+                        console.error('获取批量训练输出失败:', err);
+                        // 显示连接错误，但继续轮询
+                        const currentTime = new Date().toLocaleTimeString();
+                        const currentContent = outputDiv.innerHTML;
+                        if (!currentContent.includes('连接服务器失败')) {
+                            outputDiv.innerHTML = currentContent + `\n<span style="color:#f59e0b;">[${currentTime}] 连接服务器失败，正在重试...</span>\n`;
+                            outputDiv.scrollTop = outputDiv.scrollHeight;
+                        }
+                    });
+            }, 1000); // 每1秒获取一次输出，更及时
+        }
+        
+        // 停止轮询批量训练输出
+        function stopPollingBatchTrainingOutput() {
+            if (batchTrainingInterval) {
+                clearInterval(batchTrainingInterval);
+                batchTrainingInterval = null;
+            }
+        }
+        
+        // 页面关闭前停止轮询
+        window.addEventListener('beforeunload', function() {
+            stopPollingBatchTrainingOutput();
+        });
+    </script>
+</body>
+</html>

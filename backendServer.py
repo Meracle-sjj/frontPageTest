@@ -40,7 +40,9 @@ MODULE_CONFIG = {
         'input_dir': '/home/vipuser/Downloads/ImageSynthesis/input',
         'output_dir': '/home/vipuser/Downloads/ImageSynthesis/output', 
         'script_path': '/home/vipuser/Downloads/ImageSynthesis/run_inference.sh',
-        'supported_formats': ['.jpg', '.jpeg', '.png', '.bmp']
+        'supported_formats': ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp', 
+                             '.txt', '.json', '.xml', '.csv', '.yaml', '.yml', '.cfg', '.conf',
+                             '.py', '.sh', '.bat', '.md', '.html', '.css', '.js']
     },
     'lidar': {
         'name': '雷达数据合成模块',
@@ -211,11 +213,103 @@ def handle_module_upload(module_name):
     except Exception as e:
         return jsonify({'error': f'保存失败: {str(e)}'}), 500
 
+# 文件夹上传处理函数
+def handle_folder_upload(module_name):
+    """处理指定模块的文件夹上传"""
+    if module_name not in MODULE_CONFIG:
+        return jsonify({'error': f'不支持的模块: {module_name}'}), 400
+    
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    # 获取文件夹相关信息
+    relative_path = request.form.get('relative_path', '')
+    folder_name = request.form.get('folder_name', 'uploaded_folder')
+    
+    config = MODULE_CONFIG[module_name]
+    
+    # 创建专门的用户输入目录 /home/vipuser/home/img/userInput/Synthetic_NSVF
+    user_input_base = '/home/vipuser/home/img/userInput/Synthetic_NSVF'
+    os.makedirs(user_input_base, exist_ok=True)
+    
+    # 创建以文件夹名命名的目录，保留文件夹本身
+    folder_input_dir = os.path.join(user_input_base, folder_name)
+    os.makedirs(folder_input_dir, exist_ok=True)
+    
+    # 处理相对路径，去除开头的文件夹名称避免重复
+    if relative_path:
+        # 如果relative_path以folder_name开头，则去除它
+        if relative_path.startswith(folder_name + '/'):
+            # 去除 "folder_name/" 部分，保留子路径
+            cleaned_relative_path = relative_path[len(folder_name) + 1:]
+        elif relative_path.startswith(folder_name + os.sep):
+            # 去除 "folder_name\" 部分（Windows风格）
+            cleaned_relative_path = relative_path[len(folder_name) + 1:]
+        else:
+            # 如果不以文件夹名开头，直接使用原路径
+            cleaned_relative_path = relative_path
+        
+        # 保存到文件夹目录下，保持子文件夹结构
+        if cleaned_relative_path:
+            file_save_path = os.path.join(folder_input_dir, cleaned_relative_path)
+            # 确保父目录存在
+            os.makedirs(os.path.dirname(file_save_path), exist_ok=True)
+        else:
+            # 如果清理后路径为空，直接保存到文件夹根目录
+            original_filename = file.filename or 'unnamed'
+            file_save_path = os.path.join(folder_input_dir, original_filename)
+    else:
+        # 如果没有相对路径，直接保存到文件夹根目录
+        original_filename = file.filename or 'unnamed'
+        file_save_path = os.path.join(folder_input_dir, original_filename)
+    
+    # 对于文件夹上传，我们允许所有文件类型，不进行格式检查
+    # 这样可以支持配置文件、标注文件、脚本文件等各种类型
+    
+    try:
+        file.save(file_save_path)
+        
+        # 将新文件信息添加到对应模块的列表中
+        file_info = {
+            'filename': os.path.basename(file_save_path),
+            'original_name': file.filename or 'unnamed',
+            'relative_path': relative_path,
+            'cleaned_relative_path': cleaned_relative_path if relative_path else '',
+            'folder_name': folder_name,
+            'upload_time': datetime.now().isoformat(),
+            'path': file_save_path,
+            'module': module_name,
+            'is_folder_upload': True
+        }
+        
+        uploaded_data[module_name]['images'].append(file_info)
+        
+        return jsonify({
+            'msg': f'文件已保存到 Synthetic_NSVF: {cleaned_relative_path if relative_path else file.filename}',
+            'filename': os.path.basename(file_save_path),
+            'original_name': file.filename,
+            'relative_path': relative_path,
+            'cleaned_relative_path': cleaned_relative_path if relative_path else '',
+            'folder_name': folder_name,
+            'save_path': file_save_path,
+            'module': module_name,
+            'total_files': len(uploaded_data[module_name]['images'])
+        })
+    except Exception as e:
+        return jsonify({'error': f'保存失败: {str(e)}'}), 500
+
 # 模块化的上传API路由
 @app.route('/upload/<module_name>', methods=['POST'])
 def upload_to_module(module_name):
     """模块化上传接口"""
     return handle_module_upload(module_name)
+
+# 文件夹上传API路由
+@app.route('/upload_folder/<module_name>', methods=['POST'])
+def upload_folder_to_module(module_name):
+    """模块化文件夹上传接口"""
+    return handle_folder_upload(module_name)
 
 # 为了向后兼容，保持原有的 /upload 接口（默认为红外模块）
 @app.route('/upload', methods=['POST'])
@@ -432,8 +526,31 @@ def clear_cache(module_name='infrared'):
                 elif os.path.isdir(item_path):
                     shutil.rmtree(item_path)
 
+        # 如果是图像模块，额外清理指定的两个路径
+        if module_name == 'image':
+            # 清理用户上传的文件夹路径
+            user_input_dir = '/home/vipuser/home/img/userInput/Synthetic_NSVF'
+            if os.path.exists(user_input_dir):
+                for item in os.listdir(user_input_dir):
+                    item_path = os.path.join(user_input_dir, item)
+                    if os.path.isfile(item_path):
+                        os.remove(item_path)
+                    elif os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+            
+            # 清理实验结果路径
+            experiment_dir = '/home/vipuser/home/img/nvs/experiments'
+            if os.path.exists(experiment_dir):
+                for item in os.listdir(experiment_dir):
+                    item_path = os.path.join(experiment_dir, item)
+                    if os.path.isfile(item_path):
+                        os.remove(item_path)
+                    elif os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+
         return jsonify({
-            'message': f'{config["name"]}缓存已清除，所有上传、输出和转换后的视频文件已删除',
+            'message': f'{config["name"]}缓存已清除，所有上传、输出和转换后的视频文件已删除' + 
+                      (f'，同时清理了用户上传文件夹和实验结果文件夹' if module_name == 'image' else ''),
             'module': module_name
         })
     except Exception as e:
@@ -558,6 +675,84 @@ def download_video_dataset():
         from datetime import datetime
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         zip_filename = f"video_dataset_{timestamp}.zip"
+        
+        return send_file(
+            mem_zip, 
+            mimetype='application/zip', 
+            as_attachment=True, 
+            attachment_filename=zip_filename,
+            cache_timeout=0  # 禁用缓存
+        )
+    except Exception as e:
+        print(f"创建数据集zip文件时发生错误: {e}")
+        return jsonify({'error': f'数据集打包失败: {str(e)}'}), 500
+
+# 下载图像模块推荐数据集
+@app.route('/download_dataset/image', methods=['GET'])
+def download_image_dataset():
+    """下载图像模块的推荐数据集"""
+    dataset_dir = '/home/vipuser/home/img/data/dataforUser'
+    
+    if not os.path.exists(dataset_dir):
+        return jsonify({'error': '数据集目录不存在'}), 404
+    
+    # 添加调试信息
+    print(f"正在打包图像数据集目录: {dataset_dir}")
+    
+    # 检查目录中的文件
+    all_files = []
+    for root, dirs, files in os.walk(dataset_dir):
+        for file in files:
+            abs_path = os.path.join(root, file)
+            if os.path.isfile(abs_path) and os.path.getsize(abs_path) > 0:
+                # 包含所有类型的文件
+                all_files.append(abs_path)
+                print(f"找到数据集文件: {abs_path} (大小: {os.path.getsize(abs_path)} bytes)")
+    
+    if not all_files:
+        return jsonify({'error': '数据集目录中没有文件'}), 404
+    
+    # 创建一个新的BytesIO对象，避免缓存问题
+    mem_zip = io.BytesIO()
+    
+    try:
+        with zipfile.ZipFile(mem_zip, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as zf:
+            for abs_path in all_files:
+                rel_path = os.path.relpath(abs_path, dataset_dir)
+                try:
+                    # 使用流式处理大文件，避免内存溢出
+                    file_size = os.path.getsize(abs_path)
+                    if file_size > 50 * 1024 * 1024:  # 文件大于50MB时使用流式处理
+                        print(f"大文件流式处理: {rel_path} (大小: {file_size} bytes)")
+                        with open(abs_path, 'rb') as f:
+                            with zf.open(rel_path, 'w') as zip_file:
+                                while True:
+                                    chunk = f.read(8192)  # 8KB chunks
+                                    if not chunk:
+                                        break
+                                    zip_file.write(chunk)
+                    else:
+                        # 小文件直接读取
+                        with open(abs_path, 'rb') as f:
+                            file_data = f.read()
+                        zf.writestr(rel_path, file_data)
+                    
+                    print(f"已添加文件到zip: {rel_path} (大小: {file_size} bytes)")
+                except Exception as e:
+                    print(f"添加文件失败: {abs_path}, 错误: {e}")
+                    # 继续处理其他文件，不中断整个过程
+        
+        mem_zip.seek(0)
+        zip_size = len(mem_zip.getvalue())
+        print(f"生成的数据集zip文件大小: {zip_size} bytes")
+        
+        if zip_size < 1000:  # 如果zip文件太小，可能有问题
+            print(f"警告：生成的数据集zip文件异常小: {zip_size} bytes")
+        
+        # 使用时间戳避免缓存
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f"image_dataset_{timestamp}.zip"
         
         return send_file(
             mem_zip, 
@@ -1394,6 +1589,586 @@ def get_gpu_status():
             'success': False,
             'error': f'Failed to get GPU status: {str(e)}'
         }), 500
+
+# 输入数据集预览相关API
+@app.route('/list_input_datasets', methods=['GET'])
+def list_input_datasets():
+    """获取所有输入数据集列表"""
+    try:
+        import random
+        
+        # 用户输入数据集的基础目录
+        user_input_base = '/home/vipuser/home/img/userInput/Synthetic_NSVF'
+        
+        if not os.path.exists(user_input_base):
+            return jsonify({
+                'error': '输入数据集目录不存在',
+                'datasets': []
+            })
+        
+        datasets = []
+        
+        # 扫描所有数据集文件夹
+        for dataset_name in os.listdir(user_input_base):
+            dataset_path = os.path.join(user_input_base, dataset_name)
+            
+            # 确保是文件夹
+            if not os.path.isdir(dataset_path):
+                continue
+            
+            # 检查是否包含 rgb 文件夹
+            rgb_path = os.path.join(dataset_path, 'rgb')
+            if not os.path.exists(rgb_path) or not os.path.isdir(rgb_path):
+                continue
+            
+            # 统计 rgb 文件夹中的图片数量
+            image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp']
+            image_count = 0
+            
+            try:
+                for filename in os.listdir(rgb_path):
+                    if any(filename.lower().endswith(ext) for ext in image_extensions):
+                        image_count += 1
+            except PermissionError:
+                continue
+            
+            # 只包含有图片的数据集
+            if image_count > 0:
+                datasets.append({
+                    'name': dataset_name,
+                    'path': dataset_path,
+                    'rgb_path': rgb_path,
+                    'image_count': image_count
+                })
+        
+        # 按数据集名称排序
+        datasets.sort(key=lambda x: x['name'])
+        
+        return jsonify({
+            'datasets': datasets,
+            'total_datasets': len(datasets)
+        })
+        
+    except Exception as e:
+        print(f"获取输入数据集列表失败: {str(e)}")
+        return jsonify({
+            'error': f'获取数据集列表失败: {str(e)}',
+            'datasets': []
+        }), 500
+
+@app.route('/list_output_datasets', methods=['GET'])
+def list_output_datasets():
+    """获取所有输出数据集列表"""
+    try:
+        import random
+        
+        # 输出数据集的基础目录
+        output_base = '/home/vipuser/home/img/nvs/experiments'
+        
+        if not os.path.exists(output_base):
+            return jsonify({
+                'error': '输出数据集目录不存在',
+                'datasets': []
+            })
+        
+        datasets = []
+        
+        # 扫描所有输出文件夹
+        for folder_name in os.listdir(output_base):
+            folder_path = os.path.join(output_base, folder_name)
+            
+            # 确保是文件夹且以 _output_ 开头
+            if not os.path.isdir(folder_path) or '_output_' not in folder_name:
+                continue
+            
+            # 提取数据集名称（去除时间戳后缀）
+            dataset_name = folder_name.split('_output_')[0]
+            
+            # 检查是否包含 results 文件夹
+            results_path = os.path.join(folder_path, 'results')
+            if not os.path.exists(results_path) or not os.path.isdir(results_path):
+                continue
+            
+            # 统计深度图和RGB图的数量
+            depth_count = 0
+            rgb_count = 0
+            
+            try:
+                for filename in os.listdir(results_path):
+                    if filename.endswith('_d.png'):
+                        depth_count += 1
+                    elif filename.endswith('.png') and not filename.endswith('_d.png'):
+                        rgb_count += 1
+            except PermissionError:
+                continue
+            
+            # 只包含有图片的数据集
+            if depth_count > 0 or rgb_count > 0:
+                datasets.append({
+                    'name': dataset_name,
+                    'folder_name': folder_name,
+                    'path': folder_path,
+                    'results_path': results_path,
+                    'depth_count': depth_count,
+                    'rgb_count': rgb_count,
+                    'total_images': depth_count + rgb_count
+                })
+        
+        # 按数据集名称排序
+        datasets.sort(key=lambda x: x['name'])
+        
+        return jsonify({
+            'datasets': datasets,
+            'total_datasets': len(datasets)
+        })
+        
+    except Exception as e:
+        print(f"获取输出数据集列表失败: {str(e)}")
+        return jsonify({
+            'error': f'获取输出数据集列表失败: {str(e)}',
+            'datasets': []
+        }), 500
+
+@app.route('/get_random_output_images/<dataset_name>', methods=['GET'])
+def get_random_output_images(dataset_name):
+    """获取指定输出数据集的随机图片（深度图和RGB图）"""
+    try:
+        import random
+        
+        # 获取数量参数，默认5组
+        count = int(request.args.get('count', 5))
+        count = max(1, min(count, 20))  # 限制在1-20组之间
+        
+        # 查找对应的输出文件夹
+        output_base = '/home/vipuser/home/img/nvs/experiments'
+        output_folder = None
+        
+        for folder_name in os.listdir(output_base):
+            if folder_name.startswith(f"{dataset_name}_output_"):
+                output_folder = folder_name
+                break
+        
+        if not output_folder:
+            return jsonify({
+                'error': f'未找到数据集 {dataset_name} 的输出文件夹',
+                'images': []
+            }), 404
+        
+        results_path = os.path.join(output_base, output_folder, 'results')
+        
+        # 检查路径是否存在
+        if not os.path.exists(results_path):
+            return jsonify({
+                'error': f'数据集 {dataset_name} 的输出结果文件夹不存在',
+                'images': []
+            }), 404
+        
+        # 获取所有深度图和RGB图的编号
+        depth_files = {}
+        rgb_files = {}
+        
+        try:
+            for filename in os.listdir(results_path):
+                if filename.endswith('_d.png'):
+                    # 深度图，提取编号
+                    number = filename.replace('_d.png', '')
+                    depth_files[number] = filename
+                elif filename.endswith('.png') and not filename.endswith('_d.png'):
+                    # RGB图，提取编号
+                    number = filename.replace('.png', '')
+                    rgb_files[number] = filename
+        except PermissionError:
+            return jsonify({
+                'error': f'无权限访问数据集 {dataset_name} 的输出',
+                'images': []
+            }), 403
+        
+        # 找到同时有深度图和RGB图的编号
+        common_numbers = set(depth_files.keys()) & set(rgb_files.keys())
+        
+        if not common_numbers:
+            return jsonify({
+                'error': f'数据集 {dataset_name} 中没有找到配对的深度图和RGB图',
+                'images': []
+            })
+        
+        # 随机选择指定数量的图片组
+        selected_numbers = random.sample(list(common_numbers), min(count, len(common_numbers)))
+        
+        # 构建返回的图片信息
+        images = []
+        for number in selected_numbers:
+            depth_filename = depth_files[number]
+            rgb_filename = rgb_files[number]
+            
+            # 获取文件大小信息
+            depth_path = os.path.join(results_path, depth_filename)
+            rgb_path = os.path.join(results_path, rgb_filename)
+            
+            depth_size = round(os.path.getsize(depth_path) / (1024 * 1024), 2) if os.path.exists(depth_path) else 0
+            rgb_size = round(os.path.getsize(rgb_path) / (1024 * 1024), 2) if os.path.exists(rgb_path) else 0
+            
+            images.append({
+                'number': number,
+                'depth_filename': depth_filename,
+                'rgb_filename': rgb_filename,
+                'depth_size_mb': depth_size,
+                'rgb_size_mb': rgb_size,
+                'output_folder': output_folder
+            })
+        
+        return jsonify({
+            'images': images,
+            'dataset_name': dataset_name,
+            'output_folder': output_folder,
+            'total_pairs': len(common_numbers)
+        })
+        
+    except Exception as e:
+        print(f"获取输出数据集图片失败: {str(e)}")
+        return jsonify({
+            'error': f'获取图片失败: {str(e)}',
+            'images': []
+        }), 500
+
+# 提供输出图片文件服务
+@app.route('/output/<output_folder>/results/<filename>')
+def serve_output_image(output_folder, filename):
+    """提供输出图片文件服务"""
+    try:
+        output_base = '/home/vipuser/home/img/nvs/experiments'
+        results_path = os.path.join(output_base, output_folder, 'results')
+        
+        if os.path.exists(os.path.join(results_path, filename)):
+            return send_from_directory(results_path, filename)
+        else:
+            return jsonify({'error': '文件不存在'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': f'文件访问失败: {str(e)}'}), 500
+
+@app.route('/get_random_dataset_images/<dataset_name>', methods=['GET'])
+def get_random_dataset_images(dataset_name):
+    """获取指定数据集的随机图片"""
+    try:
+        import random
+        
+        # 获取数量参数，默认5张
+        count = int(request.args.get('count', 5))
+        count = max(1, min(count, 20))  # 限制在1-20张之间
+        
+        # 构建数据集路径
+        user_input_base = '/home/vipuser/home/img/userInput/Synthetic_NSVF'
+        dataset_path = os.path.join(user_input_base, dataset_name)
+        rgb_path = os.path.join(dataset_path, 'rgb')
+        
+        # 检查路径是否存在
+        if not os.path.exists(rgb_path):
+            return jsonify({
+                'error': f'数据集 {dataset_name} 的 rgb 文件夹不存在',
+                'images': []
+            }), 404
+        
+        # 获取所有图片文件
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp']
+        all_images = []
+        
+        try:
+            for filename in os.listdir(rgb_path):
+                if any(filename.lower().endswith(ext) for ext in image_extensions):
+                    all_images.append(filename)
+        except PermissionError:
+            return jsonify({
+                'error': f'无权限访问数据集 {dataset_name}',
+                'images': []
+            }), 403
+        
+        if not all_images:
+            return jsonify({
+                'error': f'数据集 {dataset_name} 中没有找到图片文件',
+                'images': []
+            })
+        
+        # 随机选择图片
+        selected_count = min(count, len(all_images))
+        selected_images = random.sample(all_images, selected_count)
+        
+        return jsonify({
+            'images': selected_images,
+            'total_images': len(all_images),
+            'selected_count': selected_count,
+            'dataset_name': dataset_name
+        })
+        
+    except Exception as e:
+        print(f"获取数据集 {dataset_name} 的随机图片失败: {str(e)}")
+        return jsonify({
+            'error': f'获取随机图片失败: {str(e)}',
+            'images': []
+        }), 500
+
+@app.route('/input/datasets/<dataset_name>/rgb/<filename>')
+def serve_input_dataset_image(dataset_name, filename):
+    """提供输入数据集图片的静态文件服务"""
+    try:
+        # 构建文件路径
+        user_input_base = '/home/vipuser/home/img/userInput/Synthetic_NSVF'
+        rgb_path = os.path.join(user_input_base, dataset_name, 'rgb')
+        
+        # 检查路径是否存在
+        if not os.path.exists(rgb_path):
+            return "Dataset not found", 404
+        
+        # 检查文件是否存在
+        file_path = os.path.join(rgb_path, filename)
+        if not os.path.exists(file_path):
+            return "Image file not found", 404
+        
+        # 检查是否是图片文件
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp']
+        if not any(filename.lower().endswith(ext) for ext in image_extensions):
+            return "Not an image file", 400
+        
+        return send_from_directory(rgb_path, filename)
+        
+    except Exception as e:
+        print(f"提供输入数据集图片服务失败: {str(e)}")
+        return f"Error serving image: {str(e)}", 500
+
+# 批量训练脚本相关的全局变量
+batch_training_process = None
+batch_training_task_id = None
+batch_training_output_buffer = ""  # 累积输出缓冲区
+
+@app.route('/start_batch_training', methods=['POST'])
+def start_batch_training():
+    """启动批量训练脚本"""
+    global batch_training_process, batch_training_task_id, batch_training_output_buffer
+    
+    try:
+        # 检查是否已有训练任务在运行
+        if batch_training_process and batch_training_process.poll() is None:
+            return jsonify({
+                'success': False,
+                'error': '批量训练任务已在运行中，请先停止当前任务'
+            }), 409
+        
+        # 脚本路径
+        script_path = '/home/vipuser/home/img/nvs/batch_train_python.py'
+        
+        # 检查脚本是否存在
+        if not os.path.exists(script_path):
+            return jsonify({
+                'success': False,
+                'error': f'批量训练脚本不存在: {script_path}'
+            }), 404
+        
+        # 生成任务ID并重置输出缓冲区
+        batch_training_task_id = str(uuid.uuid4())
+        batch_training_output_buffer = ""  # 重置输出缓冲区
+        
+        print(f"启动批量训练脚本: {script_path}")
+        
+        # 启动批量训练脚本
+        batch_training_process = subprocess.Popen(
+            ['python3', script_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1,  # 行缓冲
+            cwd=os.path.dirname(script_path),
+            preexec_fn=os.setsid  # 创建新的进程组
+        )
+        
+        return jsonify({
+            'success': True,
+            'task_id': batch_training_task_id,
+            'message': '批量训练脚本已启动',
+            'pid': batch_training_process.pid
+        })
+        
+    except Exception as e:
+        print(f"启动批量训练脚本失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'启动失败: {str(e)}'
+        }), 500
+
+@app.route('/get_batch_training_output', methods=['GET'])
+def get_batch_training_output():
+    """获取批量训练脚本的输出"""
+    global batch_training_process, batch_training_output_buffer
+    
+    if not batch_training_process:
+        return jsonify({
+            'output': batch_training_output_buffer,
+            'completed': True,
+            'success': False,
+            'error': '没有运行中的批量训练任务'
+        })
+    
+    try:
+        # 读取新的输出并累积到缓冲区
+        new_output = ""
+        
+        # 检查进程是否还在运行
+        if batch_training_process.poll() is not None:
+            # 进程已结束，读取剩余输出
+            try:
+                remaining_output = batch_training_process.stdout.read()
+                if remaining_output:
+                    new_output = remaining_output
+                    batch_training_output_buffer += new_output
+            except Exception as e:
+                print(f"读取剩余输出失败: {e}")
+            
+            success = (batch_training_process.returncode == 0)
+            batch_training_process = None  # 清除进程引用
+            
+            return jsonify({
+                'output': batch_training_output_buffer,
+                'completed': True,
+                'success': success
+            })
+        else:
+            # 进程仍在运行，读取新的输出
+            try:
+                # 使用非阻塞方式读取输出
+                import select
+                import fcntl
+                import os
+                
+                # 设置stdout为非阻塞模式
+                fd = batch_training_process.stdout.fileno()
+                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+                
+                try:
+                    # 尝试读取所有可用的输出
+                    while True:
+                        chunk = batch_training_process.stdout.read(1024)
+                        if not chunk:
+                            break
+                        new_output += chunk
+                except Exception:
+                    # 没有更多数据可读，这是正常的
+                    pass
+                
+                # 将新输出添加到缓冲区
+                if new_output:
+                    batch_training_output_buffer += new_output
+                
+                return jsonify({
+                    'output': batch_training_output_buffer,
+                    'completed': False,
+                    'success': None
+                })
+                
+            except Exception as e:
+                print(f"读取输出失败: {e}")
+                return jsonify({
+                    'output': batch_training_output_buffer,
+                    'completed': False,
+                    'success': None,
+                    'error': f'读取输出失败: {str(e)}'
+                })
+        
+    except Exception as e:
+        print(f"获取批量训练输出失败: {str(e)}")
+        return jsonify({
+            'output': batch_training_output_buffer,
+            'completed': True,
+            'success': False,
+            'error': f'获取输出失败: {str(e)}'
+        })
+
+@app.route('/stop_batch_training', methods=['POST'])
+def stop_batch_training():
+    """停止批量训练脚本"""
+    global batch_training_process, batch_training_task_id, batch_training_output_buffer
+    
+    if not batch_training_process:
+        return jsonify({
+            'success': False,
+            'error': '没有运行中的批量训练任务'
+        })
+    
+    try:
+        # 检查进程是否还在运行
+        if batch_training_process.poll() is None:
+            print(f"正在终止批量训练任务，PID: {batch_training_process.pid}")
+            
+            try:
+                # 首先尝试优雅地终止进程组
+                os.killpg(os.getpgid(batch_training_process.pid), 2)  # SIGINT (Ctrl+C)
+                print(f"发送 SIGINT 到进程组 {batch_training_process.pid}")
+                
+                # 等待进程终止，最多等待5秒
+                try:
+                    batch_training_process.wait(timeout=5)
+                    print(f"批量训练任务已正常终止")
+                except subprocess.TimeoutExpired:
+                    # 如果进程没有在5秒内终止，强制杀死进程组
+                    print(f"批量训练任务未能正常终止，强制杀死进程组")
+                    os.killpg(os.getpgid(batch_training_process.pid), 9)  # SIGKILL
+                    batch_training_process.wait()
+                    print(f"批量训练任务已被强制终止")
+                    
+            except ProcessLookupError:
+                # 进程已经不存在
+                print(f"进程 {batch_training_process.pid} 已经不存在")
+            except OSError as e:
+                print(f"终止进程时出错: {e}")
+                # 尝试直接杀死主进程
+                try:
+                    batch_training_process.kill()
+                    batch_training_process.wait()
+                except:
+                    pass
+            
+            batch_training_process = None
+            batch_training_task_id = None
+            
+            return jsonify({
+                'success': True,
+                'message': '批量训练任务已成功停止'
+            })
+        else:
+            # 进程已经结束
+            batch_training_process = None
+            batch_training_task_id = None
+            return jsonify({
+                'success': True,
+                'message': '批量训练任务已经结束'
+            })
+            
+    except Exception as e:
+        print(f"停止批量训练任务失败: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'停止任务失败: {str(e)}'
+        })
+
+@app.route('/batch_training_status', methods=['GET'])
+def batch_training_status():
+    """获取批量训练任务状态"""
+    global batch_training_process, batch_training_task_id
+    
+    if not batch_training_process:
+        return jsonify({
+            'running': False,
+            'task_id': batch_training_task_id,
+            'message': '没有运行中的批量训练任务'
+        })
+    
+    is_running = batch_training_process.poll() is None
+    
+    return jsonify({
+        'running': is_running,
+        'task_id': batch_training_task_id,
+        'pid': batch_training_process.pid if is_running else None,
+        'message': '批量训练任务正在运行' if is_running else '批量训练任务已结束'
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8800)
