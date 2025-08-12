@@ -76,7 +76,7 @@
         <input type="file" id="img-upload" accept="image/*" multiple class="upload-btn" style="margin-bottom:12px;">
         <button id="upload-btn" class="upload-btn" style="background:#28a745;margin-bottom:24px;" disabled>上传图片到服务器</button>
         <div class="result-area" id="result-area">请选择一张或多张图片，然后点击上传按钮。</div>
-        <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">清除缓存</button>
+        <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">删除输入输出</button>
         <button id="run-infer-btn" class="upload-btn" style="background:#ff9800;margin-bottom:18px;">执行推理脚本</button>
         <button id="download-results-btn" class="upload-btn" style="background:#4caf50;margin-bottom:18px;display:none;">保存输出图片到本地</button>
         <div id="infer-result" class="result-area"></div>
@@ -85,11 +85,11 @@
         </div>
     </div>
     <script>
-        // 清除缓存按钮事件
+        // 删除输入输出按钮事件
         document.getElementById('clear-cache-btn').onclick = function() {
             const inferResult = document.getElementById('infer-result');
             inferResult.innerHTML = '';
-            result.innerHTML = '正在清除缓存...';
+            result.innerHTML = '正在删除输入输出...';
             // 隐藏下载按钮并清空结果数据
             downloadBtn.style.display = 'none';
             currentResultImages = [];
@@ -100,7 +100,7 @@
                     if (data.message) {
                         result.innerHTML = `<div style="color:#1769aa;">${data.message}</div>`;
                     } else {
-                        result.innerHTML = `<div style="color:red;">${data.error || '清除缓存失败'}</div>`;
+                        result.innerHTML = `<div style="color:red;">${data.error || '删除失败'}</div>`;
                     }
                     // 清空本地状态
                     selectedFiles = [];
@@ -108,7 +108,7 @@
                     uploadBtn.style.background = '#ccc';
                 })
                 .catch(err => {
-                    result.innerHTML = `<div style="color:red;">清除缓存失败：${err}</div>`;
+                    result.innerHTML = `<div style="color:red;">删除失败：${err}</div>`;
                 });
         };
         const upload = document.getElementById('img-upload');

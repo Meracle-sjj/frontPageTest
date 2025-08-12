@@ -304,21 +304,12 @@
             </div>
             <div style="color: #856404; font-size: 1rem; line-height: 1.4;">
                 合成数据时间较长，请耐心等待。当多尺度级别(Level)达到220左右时，合成数据将完成。</br>
-                执行前请按 Ctrl+G 或者点击右侧按钮观察当前GPU资源，避免资源不足。
+                执行前请按 Ctrl+G 或者点击右侧按钮观察当前GPU资源，避免资源不足。</br>
+                生成数据耗时在10分钟左右，服务器上已具备可视化结果，直接点击按钮即可显示。如想检测生成模块可以先删除所有输出。
             </div>
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-            <!-- 删除缓存按钮 -->
-            <div style="margin-bottom: 20px;">
-                <button id="clear-cache-btn" class="upload-btn" style="background:#ff5722;font-size:1.1rem;padding:12px 30px;">
-                    清除缓存文件
-                </button>
-                <div style="font-size: 0.9rem; color: #666; margin-top: 8px;">
-                    清除 unconditional_samples 目录下的所有文件
-                </div>
-            </div>
-            
             <!-- 执行按钮 -->
             <div style="display: inline-block;">
                 <button id="run-script-btn" class="upload-btn" style="background:#4caf50;font-size:1.2rem;padding:15px 35px;margin-right:15px;">
@@ -330,7 +321,7 @@
                 </button>
             </div>
             
-            <!-- 可视化按钮 - 居中显示 -->
+            <!-- 可视化按钮 -->
             <div style="margin-top: 20px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;">
                 <button id="visualization-btn" class="upload-btn" style="background:#2196f3;font-size:1.1rem;padding:12px 25px;">
                     生成可视化图片
@@ -340,9 +331,14 @@
                 </button>
             </div>
             
-            <!-- 提示信息 -->
-            <div style="margin-top: 15px; text-align: center; color: #666; font-size: 0.95rem; line-height: 1.4;">
-                生成数据耗时在10分钟左右，服务器上已具备可视化结果，直接点击按钮即可显示。如想检测生成模块请先清除缓存文件。
+            <!-- 删除所有输出按钮 -->
+            <div style="margin-top: 20px;">
+                <button id="clear-cache-btn" class="upload-btn" style="background:#ff5722;font-size:1.1rem;padding:12px 30px;">
+                    删除所有输出
+                </button>
+                <div style="font-size: 0.9rem; color: #666; margin-top: 8px;">
+                    清除 unconditional_samples 目录下的所有文件
+                </div>
             </div>
         </div>
 
@@ -519,20 +515,20 @@
             resultsContainer.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // 清除缓存功能
+        // 删除所有输出功能
         clearCacheBtn.onclick = function() {
             if (isRunning) {
                 // 不使用alert，直接在页面显示消息
-                resultArea.innerHTML = '<div style="color:#ff9800;font-weight:bold;">⚠️ 任务正在执行中，请先停止当前任务再清除缓存</div>';
+                resultArea.innerHTML = '<div style="color:#ff9800;font-weight:bold;">⚠️ 任务正在执行中，请先停止当前任务再删除输出</div>';
                 return;
             }
             
             // 创建自定义确认对话框
-            const confirmMsg = '确定要清除缓存文件吗？这将删除 unconditional_samples 目录下的所有文件，此操作不可恢复。';
+            const confirmMsg = '确定要删除所有输出吗？这将删除 unconditional_samples 目录下的所有文件，此操作不可恢复。';
             resultArea.innerHTML = `
                 <div style="color:#ff9800;font-weight:bold;margin-bottom:15px;">⚠️ ${confirmMsg}</div>
                 <div style="text-align:center;">
-                    <button id="confirm-clear" style="background:#ff5722;color:white;border:none;padding:8px 15px;border-radius:4px;margin-right:10px;cursor:pointer;">确认清除</button>
+                    <button id="confirm-clear" style="background:#ff5722;color:white;border:none;padding:8px 15px;border-radius:4px;margin-right:10px;cursor:pointer;">确认删除</button>
                     <button id="cancel-clear" style="background:#666;color:white;border:none;padding:8px 15px;border-radius:4px;cursor:pointer;">取消</button>
                 </div>
             `;
@@ -540,9 +536,9 @@
             // 绑定确认和取消按钮事件
             document.getElementById('confirm-clear').onclick = function() {
                 clearCacheBtn.disabled = true;
-                clearCacheBtn.innerHTML = '🔄 正在清除...';
+                clearCacheBtn.innerHTML = '🔄 正在删除...';
                 
-                // 发送清除缓存请求
+                // 发送删除请求
                 fetch('/clear_lidar_cache', { 
                     method: 'POST',
                     headers: {
@@ -555,23 +551,23 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        resultArea.innerHTML = `<div style="color:#4caf50;font-weight:bold;">✅ 缓存清除成功！删除了 ${data.deleted_count || 0} 个文件</div>`;
+                        resultArea.innerHTML = `<div style="color:#4caf50;font-weight:bold;">✅ 输出删除成功！删除了 ${data.deleted_count || 0} 个文件</div>`;
                     } else {
-                        throw new Error(data.error || '清除缓存失败');
+                        throw new Error(data.error || '删除输出失败');
                     }
                 })
                 .catch(err => {
-                    resultArea.innerHTML = `<div style="color:#f44336;font-weight:bold;">❌ 清除缓存失败: ${err.message}</div>`;
-                    console.error('清除缓存失败:', err);
+                    resultArea.innerHTML = `<div style="color:#f44336;font-weight:bold;">❌ 删除输出失败: ${err.message}</div>`;
+                    console.error('删除输出失败:', err);
                 })
                 .finally(() => {
                     clearCacheBtn.disabled = false;
-                    clearCacheBtn.innerHTML = '清除缓存文件';
+                    clearCacheBtn.innerHTML = '删除所有输出';
                 });
             };
             
             document.getElementById('cancel-clear').onclick = function() {
-                resultArea.innerHTML = '<div style="color:#666;">清除缓存操作已取消</div>';
+                resultArea.innerHTML = '<div style="color:#666;">删除输出操作已取消</div>';
             };
         };
 

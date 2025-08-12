@@ -222,7 +222,7 @@
         
         <input type="file" id="folder-upload" webkitdirectory directory multiple class="upload-btn" style="margin-bottom:12px;">
         <button id="upload-btn" class="upload-btn" style="background:#28a745;margin-bottom:24px;" disabled>上传文件夹到服务器</button>
-        <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">清除缓存</button>
+        <button id="clear-cache-btn" class="upload-btn" style="background:#e57373;margin-bottom:18px;">删除现有输入输出</button>
         <div class="result-area" id="result-area">请选择一个文件夹，然后点击上传按钮。</div>
         
         <!-- 批量训练相关按钮 -->
@@ -263,7 +263,7 @@
                 </div>
                 <div style="line-height:1.4;margin-bottom:10px;">
                     本机上已存有部分测试数据，直接点击下方按钮即可展示输入与输出对比效果。
-                    若想体验完整的生成过程，请先点击"清除缓存"按钮清理现有数据，然后重新上传数据集并执行批量训练。
+                    若想体验完整的生成过程，请先点击"删除现有输入输出"按钮清理现有数据，然后重新上传数据集并执行批量训练。
                 </div>
                 <div style="line-height:1.4;padding-top:10px;border-top:1px solid #b3d4fc;color:#0c5460;">
                     <strong style="color:#6f42c1;">随机展示说明:</strong> 每次展示的为随机选取的5组输入和5组输出图片，点击"刷新预览"按钮可重新随机选择5组输入和输出进行展示。
@@ -287,11 +287,11 @@
     </div>
     
     <script>
-        // 清除缓存按钮事件
+        // 删除现有输入输出按钮事件
         document.getElementById('clear-cache-btn').onclick = function() {
             const inferResult = document.getElementById('infer-result');
             inferResult.innerHTML = '';
-            result.innerHTML = '正在清除缓存...';
+            result.innerHTML = '正在删除现有输入输出...';
             // 隐藏下载按钮并清空结果数据
             downloadBtn.style.display = 'none';
             downloadAllBtn.style.display = 'none';
@@ -303,7 +303,7 @@
                     if (data.message) {
                         result.innerHTML = `<div style="color:#1769aa;">${data.message}</div>`;
                     } else {
-                        result.innerHTML = `<div style="color:red;">${data.error || '清除缓存失败'}</div>`;
+                        result.innerHTML = `<div style="color:red;">${data.error || '删除失败'}</div>`;
                     }
                     // 清空本地状态
                     selectedFiles = [];
@@ -311,7 +311,7 @@
                     uploadBtn.style.background = '#ccc';
                 })
                 .catch(err => {
-                    result.innerHTML = `<div style="color:red;">清除缓存失败：${err}</div>`;
+                    result.innerHTML = `<div style="color:red;">删除失败：${err}</div>`;
                 });
         };
         
